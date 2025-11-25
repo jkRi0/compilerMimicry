@@ -43,7 +43,7 @@ public class MainDemo {
 
         // === CONTROL FLOW ===
         int value = 10;
-        if (true) {
+        if (value > 5) {
             System.out.println("\nValue is greater than 5");
         } else {
             System.out.println("\nValue is 5 or less");
@@ -56,6 +56,33 @@ public class MainDemo {
             case 3: System.out.println("Wednesday"); break;
             default: System.out.println("Another day");
         }
+
+        int[] numArray = {1, 2, 3, 4, 5};
+
+        // === LOOPS ===
+        System.out.print("\nFor Loop: ");
+        for (int i = 1; i <= 5; i++) System.out.print(i + " ");
+        System.out.println();
+
+        System.out.print("While Loop: ");
+        int w = 1;
+        while (w <= 5) {
+            System.out.print(w + " ");
+            w++;
+        }
+        System.out.println();
+
+        System.out.print("Do-While Loop: ");
+        int d = 1;
+        do {
+            System.out.print(d + " ");
+            d++;
+        } while (d <= 5);
+        System.out.println();
+
+        System.out.print("Enhanced For Loop (numArray): ");
+        for (int num : numArray) System.out.print(num + " ");
+        System.out.println();
     }
 }
 
@@ -432,8 +459,37 @@ function escapeNewlinesInStringLiterals(source) {
     return result;
 }
 
+function convertArrayDeclarations(source) {
+    const typePattern =
+        "(?:byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)";
+    const arrayPattern = new RegExp(
+        `(\\s*)${typePattern}\\s*\\[\\s*\\]\\s+([A-Za-z_]\\w*)\\s*=\\s*\\{([\\s\\S]*?)\\};`,
+        "g",
+    );
+
+    return source.replace(arrayPattern, (_, indent, name, values) => {
+        const normalizedValues = values.replace(/\s*\n\s*/g, " ").trim();
+        return `${indent}let ${name} = [${normalizedValues}];`;
+    });
+}
+
+function convertEnhancedForLoops(source) {
+    const typePattern =
+        "(?:final\\s+)?(?:byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)";
+    const enhancedPattern = new RegExp(
+        `for\\s*\\(\\s*${typePattern}\\s+([A-Za-z_]\\w*)\\s*:\\s*([^\\)]+)\\)`,
+        "g",
+    );
+
+    return source.replace(enhancedPattern, (_, iterator, iterable) => {
+        return `for (const ${iterator} of ${iterable.trim()})`;
+    });
+}
+
 function transformJavaBodyToJs(body) {
     let transformed = body;
+    transformed = convertArrayDeclarations(transformed);
+    transformed = convertEnhancedForLoops(transformed);
     transformed = transformed.replace(/System\.out\.println/g, "__println");
     transformed = transformed.replace(/System\.out\.print/g, "__print");
     transformed = transformed.replace(
