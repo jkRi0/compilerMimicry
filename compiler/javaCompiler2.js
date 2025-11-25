@@ -142,7 +142,6 @@ public class MainDemo {
 
 `;
 
-// console.log(code);
 
 const primitiveTypes = new Set([
     "byte",
@@ -935,13 +934,16 @@ function simulateSystemOutPrinting(src) {
     }
 
     if (allErrors.length > 0) {
-        console.error("=== ERRORS DETECTED ===");
-        allErrors.forEach((message) => console.error(message));
-        return;
+        // console.error("=== ERRORS DETECTED ===");
+        let temp=``;
+        allErrors.forEach((message) => temp+=message+"\n");
+        return ' '+temp;
     }
 
-    executionResult.outputs.forEach((line) => console.log(line));
-
+    let temp=``;
+    executionResult.outputs.forEach((line) => temp+=line+"\n");
+    return temp;
 }
+console.log(simulateSystemOutPrinting(code));
 
-simulateSystemOutPrinting(code);
+window.simulateJavaOutput = simulateSystemOutPrinting;

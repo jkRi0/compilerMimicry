@@ -36,6 +36,11 @@ public class MainDemo {
         System.out.println("Double wrapper: " + wrapperDouble);
         System.out.println("Boolean wrapper: " + wrapperBoolean);
 
+        System.out.println("\n123" + "456");
+        System.out.print(" 123" + 456);
+        System.out.println(123 + 456);
+
+
         // === ARRAYS ===
         int[] numArray = {1, 2, 3, 4, 5};
         String[] strArray = {"One", "Two", "Three"};
@@ -70,11 +75,12 @@ public class MainDemo {
 
         int day = 3;
         switch (day) {
-            case 1 -> System.out.println("Monday");
-            case 2 -> System.out.println("Tuesday");
-            case 3 -> System.out.println("Wednesday");
-            default -> System.out.println("Another day");
+            case 1: System.out.println("Monday"); break;
+            case 2: System.out.println("Tuesday"); break;
+            case 3: System.out.println("Wednesday"); break;
+            default: System.out.println("Another day");
         }
+
 
         // === LOOPS ===
         System.out.print("\nFor Loop: ");
@@ -101,11 +107,34 @@ public class MainDemo {
         for (int num : numArray) System.out.print(num + " ");
         System.out.println();
 
+
+
         // === SIMPLE CALCULATION INSIDE MAIN ===
         int sum = 10 + 20;
         System.out.println("\nSum of 10 + 20 = " + sum);
 
         String message = "This is a message inside main!";
         System.out.println(message);
+
+
+
+        System.out.println("Sum via method: " + addNumbers(10, 20));
+        printMessage("This is a custom message!");
+
+        System.out.println("Message from method: " + getMessage());
+    }
+
+    // Method returning a value
+    public static int addNumbers(int a, int b) {
+        return a + b;
+    }
+
+    // Method with no return
+    public static void printMessage(String msg) {
+        System.out.println("Message: " + msg);
+    }
+
+    public static String getMessage() {
+        return "This is a message from the method!";
     }
 }

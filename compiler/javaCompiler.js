@@ -204,7 +204,7 @@ function compileJavaCode(code, difficulty) {
                 const rawAst = tree.toStringTree(parser.ruleNames);
                 astRepresentation = formatAstString(rawAst);
 
-                console.log(astRepresentation);
+                // console.log(astRepresentation);  
             }
             
         } catch (error) {
@@ -234,7 +234,7 @@ function compileJavaCode(code, difficulty) {
 
     return {
         success: allIssues.length === 0,
-        output: allIssues.length === 0 ? "Program compiled successfully." : "",
+        output: allIssues.length === 0 ? "" : "",
         ast: astRepresentation,
         errors: allIssues
     };

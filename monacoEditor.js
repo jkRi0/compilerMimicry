@@ -13,8 +13,6 @@ require(['vs/editor/editor.main'], function() {
     window.editor = editor; // Make editor globally accessible
     window.monaco = monaco; // Make monaco globally accessible for language switching
 
-    const outputTerminal = document.getElementById('outputTerminal');
-
     // Keep console.log and console.error in browser console only
     // (Removed redirection to output terminal to keep it clean for program output)
 
@@ -33,19 +31,25 @@ require(['vs/editor/editor.main'], function() {
         const language = selectedLanguageSpan ? selectedLanguageSpan.textContent.toLowerCase() : 'java';
         
         const result = window.compileCode(code, difficulty, language);
+
+        const output = window.simulateCode(code, language);
+
+        console.log('Simulation result:', output);
         console.log('Compilation result:', result); // Debug log
-        
-        const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
-        if (result.success) {
+
+
+        // const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
+        if (result.success&&output[0]!=' ') {
             outputTerminal.style.color = '#00ff00';
-            outputTerminal.textContent = `Program Output:\n${result.output}${astText}`;
+            outputTerminal.textContent = `OUTPUT TERMINAL >>>${result.output}\n\n${output}`;
         } else {
             outputTerminal.style.color = '#ff0000';
             outputTerminal.textContent = "❌ Compile-time errors found:\n" + 
-                result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n');
-            if (astText) {
-                outputTerminal.textContent += astText;
-            }
+                result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n')+
+                '\n'+(output[0]==' '?output:'');
+            // if (astText) {
+            //     outputTerminal.textContent += astText;
+            // }
         }
     });
 });
