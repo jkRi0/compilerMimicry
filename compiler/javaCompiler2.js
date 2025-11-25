@@ -119,8 +119,24 @@ public class MainDemo {
 
 
 
+        System.out.println("Sum via method: " + addNumbers(10, 20));
+        printMessage("This is a custom message!");
 
-        
+        System.out.println("Message from method: " + getMessage());
+    }
+
+    // Method returning a value
+    public static int addNumbers(int a, int b) {
+        return a + b;
+    }
+
+    // Method with no return
+    public static void printMessage(String msg) {
+        System.out.println("Message: " + msg);
+    }
+
+    public static String getMessage() {
+        return "This is a message from the method!";
     }
 }
 
@@ -589,10 +605,216 @@ function transformJavaBodyToJs(body) {
     return transformed;
 }
 
+function wrapMethodReturnStatements(body, method) {
+    const errors = [];
+    const returnRegex = /return(?:\s+([^;]*))?;/g;
+    let hasReturn = false;
+
+    const replaced = body.replace(returnRegex, (_, expr = "") => {
+        const trimmedExpr = expr.trim();
+        if (method.returnType === "void") {
+            if (trimmedExpr) {
+                errors.push(
+                    `MainDemo.java: error: cannot return a value from method ${method.name}() whose return type is void`,
+                );
+            }
+            return "return;";
+        }
+
+        hasReturn = true;
+        if (!trimmedExpr) {
+            errors.push(
+                `MainDemo.java: error: method ${method.name}() must return a value of type ${method.returnType}`,
+            );
+            return `return __validateMethodReturn("${method.name}", "${method.returnType}", undefined);`;
+        }
+
+        return `return __validateMethodReturn("${method.name}", "${method.returnType}", ${trimmedExpr});`;
+    });
+
+    if (method.returnType !== "void" && !hasReturn) {
+        errors.push(
+            `MainDemo.java: error: missing return statement in method ${method.name} with return type ${method.returnType}`,
+        );
+    }
+
+    return { body: replaced, errors };
+}
+
+function extractMethodDefinitions(src) {
+    const methods = [];
+    const methodPattern =
+        /(public|private|protected)?\s*(static\s+)?([A-Za-z0-9_<>\[\]]+)\s+([A-Za-z_]\w*)\s*\(([^)]*)\)\s*\{/g;
+    let match;
+
+    while ((match = methodPattern.exec(src)) !== null) {
+        const name = match[4];
+        if (name === "main") {
+            continue;
+        }
+        const braceStart = methodPattern.lastIndex - 1;
+        const braceEnd = findMatchingBrace(src, braceStart);
+        if (braceEnd === -1) {
+            break;
+        }
+        const paramsRaw = match[5] || "";
+        const accessModifier = (match[1] || "").trim();
+        methods.push({
+            name,
+            params: paramsRaw,
+            body: src.slice(braceStart + 1, braceEnd),
+            access: accessModifier || "package-private",
+            isStatic: Boolean(match[2]),
+            returnType: (match[3] || "").trim(),
+        });
+        methodPattern.lastIndex = braceEnd + 1;
+    }
+
+    return methods;
+}
+
+function convertMethodParameters(paramList) {
+    if (!paramList || !paramList.trim()) {
+        return "";
+    }
+
+    return paramList
+        .split(",")
+        .map((segment) => {
+            const clean = segment.replace(/\bfinal\b/g, "").replace(/\.\.\./g, "").trim();
+            if (!clean) {
+                return "";
+            }
+            const tokens = clean.split(/\s+/);
+            const last = tokens[tokens.length - 1] || "";
+            return last.replace(/\[\]/g, "");
+        })
+        .filter(Boolean)
+        .join(", ");
+}
+
+function indentLines(code, indent = "    ") {
+    return code
+        .split("\n")
+        .map((line) => {
+            if (!line.trim()) {
+                return line;
+            }
+            return `${indent}${line}`;
+        })
+        .join("\n");
+}
+
+function validateReturnTypeName(returnType, methodName) {
+    const validTypes = new Set([
+        "byte", "short", "int", "long", "float", "double", "char", "boolean",
+        "void", "String", "Integer", "Double", "Boolean"
+    ]);
+    
+    const trimmed = (returnType || "").trim();
+    if (!trimmed) {
+        return `MainDemo.java: error: invalid return type for method ${methodName}()`;
+    }
+    
+    if (!validTypes.has(trimmed)) {
+        const lower = trimmed.toLowerCase();
+        if (lower === "string") {
+            return `MainDemo.java: error: cannot find symbol: class string (should be String)`;
+        }
+        if (lower === "integer") {
+            return `MainDemo.java: error: cannot find symbol: class integer (should be int or Integer)`;
+        }
+        return `MainDemo.java: error: cannot find symbol: class ${trimmed}`;
+    }
+    
+    return null;
+}
+
+function convertMethodsToJs(src) {
+    const methods = extractMethodDefinitions(src);
+    const conversionErrors = [];
+
+    methods.forEach((method) => {
+        const typeError = validateReturnTypeName(method.returnType, method.name);
+        if (typeError) {
+            conversionErrors.push(typeError);
+        }
+    });
+
+    const code = methods
+        .map((method) => {
+            const paramsJs = convertMethodParameters(method.params);
+            const transformedBody = transformJavaBodyToJs(method.body).trim();
+            const { body, errors } = wrapMethodReturnStatements(transformedBody, method);
+            conversionErrors.push(...errors);
+            const indentedBody = body ? indentLines(body) : "";
+            return `function ${method.name}(${paramsJs}) {\n${indentedBody}\n}\n`;
+        })
+        .join("\n");
+
+    return {
+        code,
+        metadata: methods.map((method) => ({
+            name: method.name,
+            params: method.params,
+            access: method.access,
+            isStatic: method.isStatic,
+            returnType: method.returnType,
+        })),
+        errors: conversionErrors,
+    };
+}
+
+function normalizeParamSignature(params) {
+    if (!params) {
+        return "";
+    }
+    return params
+        .split(",")
+        .map((segment) => segment.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .join(", ");
+}
+
+function findStaticInvocationErrors(mainBody, methods) {
+    const errors = [];
+
+    methods.forEach((method) => {
+        if (method.isStatic) {
+            return;
+        }
+        const pattern = new RegExp(`(^|[^.\\w])${method.name}\\s*\\(`, "m");
+        pattern.lastIndex = 0;
+        if (pattern.test(mainBody)) {
+            const paramsSignature = normalizeParamSignature(method.params);
+            errors.push(
+                `MainDemo.java: error: non-static method ${method.name}(${paramsSignature}) cannot be referenced from a static context`,
+            );
+        }
+    });
+
+    return errors;
+}
+
 function executeJavaMain(src) {
     const mainBody = extractMainMethodBody(src);
     if (!mainBody) {
         throw new Error("Unable to locate the main method body.");
+    }
+
+    const methodConversion = convertMethodsToJs(src);
+    const methodErrors = [...methodConversion.errors];
+    const staticInvocationErrors = findStaticInvocationErrors(
+        mainBody,
+        methodConversion.metadata,
+    );
+    const combinedErrors = [...methodErrors, ...staticInvocationErrors];
+    if (combinedErrors.length > 0) {
+        return {
+            outputs: [],
+            methods: methodConversion.metadata,
+            errors: combinedErrors,
+        };
     }
 
     const jsBody = transformJavaBodyToJs(mainBody);
@@ -608,6 +830,74 @@ function executeJavaMain(src) {
                 outputs.push(currentLine + String(value ?? ""));
                 currentLine = "";
             };
+            const __numericTypes = ["byte","short","int","long","float","double","integer"];
+            const __integerTypes = ["byte","short","int","long","integer"];
+            const __describeJsType = (value) => {
+                if (value === null) return "null";
+                if (value === undefined) return "undefined";
+                if (Number.isNaN(value)) return "NaN";
+                if (typeof value === "string") return "String";
+                if (typeof value === "number") return Number.isInteger(value) ? "int" : "double";
+                if (typeof value === "boolean") return "boolean";
+                return typeof value;
+            };
+            const __checkReturnType = (expectedType, value) => {
+                const normalized = (expectedType || "").trim();
+                const lower = normalized.toLowerCase();
+                if (normalized === "void") {
+                    if (typeof value !== "undefined") {
+                        return "void method cannot return a value";
+                    }
+                    return "";
+                }
+                if (__numericTypes.includes(lower)) {
+                    if (typeof value !== "number" || !Number.isFinite(value)) {
+                        return \`incompatible return type: expected \${expectedType} but received \${__describeJsType(value)}\`;
+                    }
+                    if (__integerTypes.includes(lower) && !Number.isInteger(value)) {
+                        return \`incompatible return type: expected integer-compatible type \${expectedType} but received \${value}\`;
+                    }
+                    return "";
+                }
+                if (normalized === "boolean" || normalized === "Boolean") {
+                    if (typeof value !== "boolean") {
+                        return \`incompatible return type: expected \${normalized} but received \${__describeJsType(value)}\`;
+                    }
+                    return "";
+                }
+                if (normalized === "char") {
+                    if (typeof value !== "string" || value.length !== 1) {
+                        return "incompatible return type: expected char but received value that is not a single character";
+                    }
+                    return "";
+                }
+                if (normalized === "String") {
+                    if (typeof value !== "string") {
+                        return "incompatible return type: expected String but received " + __describeJsType(value);
+                    }
+                    return "";
+                }
+                if (normalized === "Integer") {
+                    if (typeof value !== "number" || !Number.isFinite(value) || !Number.isInteger(value)) {
+                        return \`incompatible return type: expected Integer but received \${__describeJsType(value)}\`;
+                    }
+                    return "";
+                }
+                if (normalized === "Double") {
+                    if (typeof value !== "number" || !Number.isFinite(value)) {
+                        return \`incompatible return type: expected Double but received \${__describeJsType(value)}\`;
+                    }
+                    return "";
+                }
+                return "";
+            };
+            const __validateMethodReturn = (methodName, expectedType, value) => {
+                const error = __checkReturnType(expectedType, value);
+                if (error) {
+                    throw new Error(\`MainDemo.java: error: \${error} in method \${methodName}()\`);
+                }
+                return value;
+            };
         `;
         const suffix = `
             if (currentLine) {
@@ -615,9 +905,13 @@ function executeJavaMain(src) {
             }
             return outputs;
         `;
-        const runner = new Function(`${prefix}${jsBody}${suffix}`);
+        const runner = new Function(`${prefix}${methodConversion.code}\n${jsBody}${suffix}`);
 
-        return runner();
+        return {
+            outputs: runner(),
+            methods: methodConversion.metadata,
+            errors: [],
+        };
     } catch (error) {
         throw new Error(`Failed to execute Java snippet: ${error.message}`);
     }
@@ -627,11 +921,14 @@ function simulateSystemOutPrinting(src) {
     const { errors } = extractDeclarations(src);
     const syntaxErrors = findInvalidSystemOutCalls(src);
     const allErrors = [...errors, ...syntaxErrors];
-    let outputs = [];
+    let executionResult = { outputs: [], methods: [], errors: [] };
 
     if (allErrors.length === 0) {
         try {
-            outputs = executeJavaMain(src);
+            executionResult = executeJavaMain(src);
+            if (executionResult.errors && executionResult.errors.length > 0) {
+                allErrors.push(...executionResult.errors);
+            }
         } catch (error) {
             allErrors.push(error.message);
         }
@@ -643,7 +940,8 @@ function simulateSystemOutPrinting(src) {
         return;
     }
 
-    outputs.forEach((line) => console.log(line));
+    executionResult.outputs.forEach((line) => console.log(line));
+
 }
 
 simulateSystemOutPrinting(code);
