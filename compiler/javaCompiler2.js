@@ -443,8 +443,9 @@ function findInvalidSystemOutCalls(src) {
     while ((match = systemOutPattern.exec(src)) !== null) {
         const method = match[1];
         if (method !== "print" && method !== "println") {
+            const line = src.slice(0, match.index).split("\n").length;
             invalidCalls.push(
-                `Unsupported System.out method "${method}". Only print and println are supported.`,
+                `MainDemo.java:${line}: error: Unsupported System.out method "${method}". Only print and println are supported.`,
             );
         }
     }
@@ -608,13 +609,14 @@ function wrapMethodReturnStatements(body, method) {
     const errors = [];
     const returnRegex = /return(?:\s+([^;]*))?;/g;
     let hasReturn = false;
+    const linePrefix = method.line ? `MainDemo.java:${method.line}: ` : "MainDemo.java: ";
 
     const replaced = body.replace(returnRegex, (_, expr = "") => {
         const trimmedExpr = expr.trim();
         if (method.returnType === "void") {
             if (trimmedExpr) {
                 errors.push(
-                    `MainDemo.java: error: cannot return a value from method ${method.name}() whose return type is void`,
+                    `${linePrefix}error: cannot return a value from method ${method.name}() whose return type is void`,
                 );
             }
             return "return;";
@@ -623,17 +625,19 @@ function wrapMethodReturnStatements(body, method) {
         hasReturn = true;
         if (!trimmedExpr) {
             errors.push(
-                `MainDemo.java: error: method ${method.name}() must return a value of type ${method.returnType}`,
+                `${linePrefix}error: method ${method.name}() must return a value of type ${method.returnType}`,
             );
-            return `return __validateMethodReturn("${method.name}", "${method.returnType}", undefined);`;
+            return `return __validateMethodReturn("${method.name}", "${method.returnType}", undefined, ${method.line ||
+                0});`;
         }
 
-        return `return __validateMethodReturn("${method.name}", "${method.returnType}", ${trimmedExpr});`;
+        return `return __validateMethodReturn("${method.name}", "${method.returnType}", ${trimmedExpr}, ${method.line ||
+            0});`;
     });
 
     if (method.returnType !== "void" && !hasReturn) {
         errors.push(
-            `MainDemo.java: error: missing return statement in method ${method.name} with return type ${method.returnType}`,
+            `${linePrefix}error: missing return statement in method ${method.name} with return type ${method.returnType}`,
         );
     }
 
@@ -651,6 +655,11 @@ function extractMethodDefinitions(src) {
         if (name === "main") {
             continue;
         }
+        const methodStartIndex = match.index;
+        const line =
+            src
+                .slice(0, methodStartIndex)
+                .split("\n").length;
         const braceStart = methodPattern.lastIndex - 1;
         const braceEnd = findMatchingBrace(src, braceStart);
         if (braceEnd === -1) {
@@ -665,6 +674,7 @@ function extractMethodDefinitions(src) {
             access: accessModifier || "package-private",
             isStatic: Boolean(match[2]),
             returnType: (match[3] || "").trim(),
+            line,
         });
         methodPattern.lastIndex = braceEnd + 1;
     }
@@ -704,28 +714,41 @@ function indentLines(code, indent = "    ") {
         .join("\n");
 }
 
-function validateReturnTypeName(returnType, methodName) {
+function validateReturnTypeName(returnType, methodName, lineNumber) {
     const validTypes = new Set([
-        "byte", "short", "int", "long", "float", "double", "char", "boolean",
-        "void", "String", "Integer", "Double", "Boolean"
+        "byte",
+        "short",
+        "int",
+        "long",
+        "float",
+        "double",
+        "char",
+        "boolean",
+        "void",
+        "String",
+        "Integer",
+        "Double",
+        "Boolean",
     ]);
-    
+
     const trimmed = (returnType || "").trim();
+    const prefix = lineNumber ? `MainDemo.java:${lineNumber}: ` : "MainDemo.java: ";
+
     if (!trimmed) {
-        return `MainDemo.java: error: invalid return type for method ${methodName}()`;
+        return `${prefix}error: invalid return type for method ${methodName}()`;
     }
-    
+
     if (!validTypes.has(trimmed)) {
         const lower = trimmed.toLowerCase();
         if (lower === "string") {
-            return `MainDemo.java: error: cannot find symbol: class string (should be String)`;
+            return `${prefix}error: cannot find symbol: class string (should be String)`;
         }
         if (lower === "integer") {
-            return `MainDemo.java: error: cannot find symbol: class integer (should be int or Integer)`;
+            return `${prefix}error: cannot find symbol: class integer (should be int or Integer)`;
         }
-        return `MainDemo.java: error: cannot find symbol: class ${trimmed}`;
+        return `${prefix}error: cannot find symbol: class ${trimmed}`;
     }
-    
+
     return null;
 }
 
@@ -734,7 +757,7 @@ function convertMethodsToJs(src) {
     const conversionErrors = [];
 
     methods.forEach((method) => {
-        const typeError = validateReturnTypeName(method.returnType, method.name);
+        const typeError = validateReturnTypeName(method.returnType, method.name, method.line);
         if (typeError) {
             conversionErrors.push(typeError);
         }
@@ -890,10 +913,11 @@ function executeJavaMain(src) {
                 }
                 return "";
             };
-            const __validateMethodReturn = (methodName, expectedType, value) => {
+            const __validateMethodReturn = (methodName, expectedType, value, lineNumber = 0) => {
                 const error = __checkReturnType(expectedType, value);
                 if (error) {
-                    throw new Error(\`MainDemo.java: error: \${error} in method \${methodName}()\`);
+                    const linePrefix = lineNumber ? \`MainDemo.java:\${lineNumber}:\` : "MainDemo.java:";
+                    throw new Error(\`\${linePrefix} error: \${error} in method \${methodName}()\`);
                 }
                 return value;
             };
