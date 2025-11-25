@@ -41,6 +41,31 @@ public class MainDemo {
         System.out.print(" 123" + 456);
         System.out.println(123 + 456);
 
+
+        // === ARRAYS ===
+        int[] numArray = {1, 2, 3, 4, 5};
+        String[] strArray = {"One", "Two", "Three"};
+        int[][] matrix = {
+            {1, 2, 3},
+            {4, 5, 6}
+        };
+
+        System.out.print("\n1D Array: ");
+        for (int num : numArray) System.out.print(num + " ");
+        System.out.println();
+
+        System.out.print("String Array: ");
+        for (String s : strArray) System.out.print(s + " ");
+        System.out.println();
+
+        System.out.println("2D Array:");
+        for (int i = 0; i < matrix.length; i++) {
+            for (int j = 0; j < matrix[i].length; j++) {
+                System.out.print(matrix[i][j] + " ");
+            }
+            System.out.println();
+        }
+
         // === CONTROL FLOW ===
         int value = 10;
         if (value > 5) {
@@ -57,7 +82,6 @@ public class MainDemo {
             default: System.out.println("Another day");
         }
 
-        int[] numArray = {1, 2, 3, 4, 5};
 
         // === LOOPS ===
         System.out.print("\nFor Loop: ");
@@ -459,6 +483,20 @@ function escapeNewlinesInStringLiterals(source) {
     return result;
 }
 
+function convertMultiDimArrayDeclarations(source) {
+    const typePattern =
+        "(?:byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)";
+    const multiPattern = new RegExp(
+        `(\\s*)${typePattern}(?:\\s*\\[\\s*\\])+\\s+([A-Za-z_]\\w*)\\s*=\\s*(\\{[\\s\\S]*?\\})\\s*;`,
+        "g",
+    );
+
+    return source.replace(multiPattern, (_, indent, name, initializer) => {
+        const convertedInitializer = initializer.replace(/\{/g, "[").replace(/\}/g, "]");
+        return `${indent}let ${name} = ${convertedInitializer};`;
+    });
+}
+
 function convertArrayDeclarations(source) {
     const typePattern =
         "(?:byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)";
@@ -488,6 +526,7 @@ function convertEnhancedForLoops(source) {
 
 function transformJavaBodyToJs(body) {
     let transformed = body;
+    transformed = convertMultiDimArrayDeclarations(transformed);
     transformed = convertArrayDeclarations(transformed);
     transformed = convertEnhancedForLoops(transformed);
     transformed = transformed.replace(/System\.out\.println/g, "__println");
