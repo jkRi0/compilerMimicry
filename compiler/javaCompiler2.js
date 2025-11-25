@@ -40,6 +40,22 @@ public class MainDemo {
         System.out.println("\n123" + "456");
         System.out.print(" 123" + 456);
         System.out.println(123 + 456);
+
+        // === CONTROL FLOW ===
+        int value = 10;
+        if (true) {
+            System.out.println("\nValue is greater than 5");
+        } else {
+            System.out.println("\nValue is 5 or less");
+        }
+
+        int day = 3;
+        switch (day) {
+            case 1: System.out.println("Monday"); break;
+            case 2: System.out.println("Tuesday"); break;
+            case 3: System.out.println("Wednesday"); break;
+            default: System.out.println("Another day");
+        }
     }
 }
 
@@ -305,222 +321,186 @@ function validateLiteral(type, rawValue) {
     }
 }
 
-function splitByPlus(expr) {
-    const tokens = [];
-    let current = "";
-    let inString = false;
-    let stringChar = null;
-
-    for (let i = 0; i < expr.length; i++) {
-        const ch = expr[i];
-
-        if ((ch === '"' || ch === "'") && expr[i - 1] !== "\\") {
-            if (inString && ch === stringChar) {
-                inString = false;
-                stringChar = null;
-            } else if (!inString) {
-                inString = true;
-                stringChar = ch;
-            }
-            current += ch;
-            continue;
-        }
-
-        if (ch === "+" && !inString) {
-            if (current.trim()) {
-                tokens.push(current.trim());
-            }
-            current = "";
-        } else {
-            current += ch;
-        }
-    }
-
-    if (current.trim()) {
-        tokens.push(current.trim());
-    }
-
-    return tokens;
-}
-
-function removeStringLiterals(expr) {
-    return expr.replace(/"(?:\\.|[^"])*"|'(?:\\.|[^'])*'/g, "");
-}
-
-function containsStringLiteral(expr) {
-    const stringPattern = /"(?:\\.|[^"])*"|'(?:\\.|[^'])*'/;
-    return stringPattern.test(expr);
-}
-
-function referencesStringVariable(expr, declarations) {
-    const identifierPattern = /\b[A-Za-z_]\w*\b/g;
-    let match;
-    while ((match = identifierPattern.exec(expr)) !== null) {
-        const name = match[0];
-        const declaration = declarations[name];
-        if (!declaration) {
-            continue;
-        }
-        if (
-            declaration.type === "String" ||
-            declaration.type === "char" ||
-            declaration.type === "Character"
-        ) {
-            return true;
-        }
-    }
-    return false;
-}
-
-function classifyExpression(expr, declarations) {
-    if (containsStringLiteral(expr) || referencesStringVariable(expr, declarations)) {
-        return "concatenation";
-    }
-
-    const cleaned = removeStringLiterals(expr);
-    if (/[+\-*/]/.test(cleaned)) {
-        return "arithmetic";
-    }
-
-    return "value";
-}
-
-function evaluateArithmeticExpression(expr, declarations) {
-    const withoutStrings = removeStringLiterals(expr);
-    const replaced = withoutStrings.replace(
-        /\b[A-Za-z_]\w*\b/g,
-        (identifier) => {
-            const lower = identifier.toLowerCase();
-            if (lower === "true" || lower === "false") {
-                return lower;
-            }
-
-            const declaration = declarations[identifier];
-            if (!declaration) {
-                throw new Error(`Unknown identifier "${identifier}" in arithmetic expression`);
-            }
-            if (!declaration.isValid) {
-                throw new Error(
-                    `Cannot use invalid value from "${identifier}" in arithmetic expression`,
-                );
-            }
-            if (typeof declaration.jsValue !== "number") {
-                throw new Error(
-                    `Identifier "${identifier}" is not numeric and cannot be used arithmetically`,
-                );
-            }
-            return declaration.jsValue.toString();
-        },
-    );
-
-    const sanitized = replaced.replace(/\s+/g, "");
-    if (!/^[0-9+\-*/().eE]+$/.test(sanitized)) {
-        throw new Error(
-            `Unsupported tokens in arithmetic expression "${expr}" after sanitizing`,
-        );
-    }
-
-    try {
-        // eslint-disable-next-line no-new-func
-        const evaluator = new Function(`return (${replaced});`);
-        return evaluator();
-    } catch (error) {
-        throw new Error(`Failed to evaluate arithmetic expression "${expr}": ${error.message}`);
-    }
-}
-
-function evaluateExpression(expr, declarations) {
-    const classification = classifyExpression(expr, declarations);
-    if (classification === "arithmetic") {
-        return evaluateArithmeticExpression(expr, declarations);
-    }
-    return evaluatePrintExpression(expr, declarations);
-}
-
-function evaluatePrintExpression(expr, declarations) {
-    const tokens = splitByPlus(expr);
-
-    return tokens
-        .map((token) => {
-            if (
-                (token.startsWith('"') && token.endsWith('"')) ||
-                (token.startsWith("'") && token.endsWith("'"))
-            ) {
-                return unquoteLiteral(token);
-            }
-            const identifier = token.replace(/[()]/g, "").trim();
-            if (declarations[identifier]) {
-                const declaration = declarations[identifier];
-                if (!declaration.isValid) {
-                    throw new Error(`Invalid value detected for identifier "${identifier}"`);
-                }
-                return declaration.valueForPrinting;
-            }
-            if (/^-?\d+(\.\d+)?$/.test(identifier)) {
-                return identifier;
-            }
-            throw new Error(`Unknown token or identifier "${token}" in print expression`);
-        })
-        .join("");
-}
-
 function findInvalidSystemOutCalls(src) {
     const invalidCalls = [];
-    const seen = new Set();
     const systemOutPattern = /System\.out\.([A-Za-z_]\w*)\s*\(/g;
     let match;
 
     while ((match = systemOutPattern.exec(src)) !== null) {
         const method = match[1];
-        if (method !== "print" && method !== "println" && !seen.has(match.index)) {
+        if (method !== "print" && method !== "println") {
             invalidCalls.push(
                 `Unsupported System.out method "${method}". Only print and println are supported.`,
             );
         }
-        seen.add(match.index);
     }
 
     return invalidCalls;
 }
 
-function simulateSystemOutPrinting(src) {
-    const { declarations, errors } = extractDeclarations(src);
-    const printCallPattern = /System\.out\.(println|print)\s*\(([^;]*)\);/g;
-    let match;
+function extractMainMethodBody(src) {
+    const mainIndex = src.indexOf("public static void main");
+    if (mainIndex === -1) {
+        return null;
+    }
+    const braceStart = src.indexOf("{", mainIndex);
+    if (braceStart === -1) {
+        return null;
+    }
+    const braceEnd = findMatchingBrace(src, braceStart);
+    if (braceEnd === -1) {
+        return null;
+    }
+    return src.slice(braceStart + 1, braceEnd);
+}
 
-    const syntaxErrors = findInvalidSystemOutCalls(src);
-    const runtimeErrors = [];
-    const outputLines = [];
-    let lineBuffer = "";
+function findMatchingBrace(src, openBraceIndex) {
+    let depth = 0;
+    let inString = false;
+    let stringChar = null;
 
-    while ((match = printCallPattern.exec(src)) !== null) {
-        const method = match[1];
-        const expression = match[2].trim();
-        try {
-            const evaluated = evaluateExpression(expression, declarations);
-            if (method === "print") {
-                lineBuffer += evaluated;
-            } else {
-                outputLines.push(lineBuffer + evaluated);
-                lineBuffer = "";
+    for (let i = openBraceIndex; i < src.length; i++) {
+        const ch = src[i];
+        const prev = src[i - 1];
+
+        if (inString) {
+            if (ch === stringChar && prev !== "\\") {
+                inString = false;
+                stringChar = null;
             }
-        } catch (error) {
-            runtimeErrors.push(error.message);
+            continue;
+        }
+
+        if ((ch === '"' || ch === "'") && prev !== "\\") {
+            inString = true;
+            stringChar = ch;
+            continue;
+        }
+
+        if (ch === "{") {
+            depth += 1;
+            continue;
+        }
+
+        if (ch === "}") {
+            depth -= 1;
+            if (depth === 0) {
+                return i;
+            }
         }
     }
 
-    if (lineBuffer) {
-        outputLines.push(lineBuffer);
+    return -1;
+}
+
+function escapeNewlinesInStringLiterals(source) {
+    let result = "";
+    let inString = false;
+    let stringChar = null;
+
+    for (let i = 0; i < source.length; i++) {
+        const ch = source[i];
+        const prev = source[i - 1];
+
+        if (inString) {
+            if (ch === "\n") {
+                result += "\\n";
+                continue;
+            }
+            if (ch === "\r") {
+                result += "\\r";
+                continue;
+            }
+            if (ch === stringChar && prev !== "\\") {
+                inString = false;
+                stringChar = null;
+            }
+            result += ch;
+            continue;
+        }
+
+        if ((ch === '"' || ch === "'") && prev !== "\\") {
+            inString = true;
+            stringChar = ch;
+            result += ch;
+            continue;
+        }
+
+        result += ch;
     }
 
-    const allErrors = [...errors, ...syntaxErrors, ...runtimeErrors];
+    return result;
+}
+
+function transformJavaBodyToJs(body) {
+    let transformed = body;
+    transformed = transformed.replace(/System\.out\.println/g, "__println");
+    transformed = transformed.replace(/System\.out\.print/g, "__print");
+    transformed = transformed.replace(
+        /\b(byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)\s+([A-Za-z_]\w*)\s*=/g,
+        "let $2 =",
+    );
+    transformed = transformed.replace(/(\d+)[lL]\b/g, "$1");
+    transformed = transformed.replace(/(\d+(?:\.\d+)?)[fF]\b/g, "$1");
+    transformed = escapeNewlinesInStringLiterals(transformed);
+    return transformed;
+}
+
+function executeJavaMain(src) {
+    const mainBody = extractMainMethodBody(src);
+    if (!mainBody) {
+        throw new Error("Unable to locate the main method body.");
+    }
+
+    const jsBody = transformJavaBodyToJs(mainBody);
+
+    try {
+        const prefix = `
+            const outputs = [];
+            let currentLine = "";
+            const __print = (value = "") => {
+                currentLine += String(value ?? "");
+            };
+            const __println = (value = "") => {
+                outputs.push(currentLine + String(value ?? ""));
+                currentLine = "";
+            };
+        `;
+        const suffix = `
+            if (currentLine) {
+                outputs.push(currentLine);
+            }
+            return outputs;
+        `;
+        const runner = new Function(`${prefix}${jsBody}${suffix}`);
+
+        return runner();
+    } catch (error) {
+        throw new Error(`Failed to execute Java snippet: ${error.message}`);
+    }
+}
+
+function simulateSystemOutPrinting(src) {
+    const { errors } = extractDeclarations(src);
+    const syntaxErrors = findInvalidSystemOutCalls(src);
+    const allErrors = [...errors, ...syntaxErrors];
+    let outputs = [];
+
+    if (allErrors.length === 0) {
+        try {
+            outputs = executeJavaMain(src);
+        } catch (error) {
+            allErrors.push(error.message);
+        }
+    }
+
     if (allErrors.length > 0) {
         console.error("=== ERRORS DETECTED ===");
         allErrors.forEach((message) => console.error(message));
         return;
     }
 
-    outputLines.forEach((line) => console.log(line));
+    outputs.forEach((line) => console.log(line));
 }
 
 simulateSystemOutPrinting(code);
