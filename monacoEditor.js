@@ -35,13 +35,17 @@ require(['vs/editor/editor.main'], function() {
         const result = window.compileCode(code, difficulty, language);
         console.log('Compilation result:', result); // Debug log
         
+        const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
         if (result.success) {
             outputTerminal.style.color = '#00ff00';
-            outputTerminal.textContent = `Program Output:\n${result.output}`;
+            outputTerminal.textContent = `Program Output:\n${result.output}${astText}`;
         } else {
             outputTerminal.style.color = '#ff0000';
             outputTerminal.textContent = "❌ Compile-time errors found:\n" + 
                 result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n');
+            if (astText) {
+                outputTerminal.textContent += astText;
+            }
         }
     });
 });

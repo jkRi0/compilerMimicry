@@ -80,8 +80,66 @@ function simplifyErrorMessage(msg, offendingSymbol, code, line) {
     return 'Syntax error at this location';
 }
 
+function formatAstString(astString) {
+    if (!astString || typeof astString !== 'string') {
+        return '';
+    }
+
+    const tokens = astString
+        .replace(/\(/g, ' ( ')
+        .replace(/\)/g, ' ) ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const stack = [];
+    let root = null;
+
+    tokens.forEach(token => {
+        if (token === '(') {
+            const node = { name: null, values: [], children: [] };
+            if (stack.length) {
+                stack[stack.length - 1].children.push(node);
+            } else {
+                root = node;
+            }
+            stack.push(node);
+        } else if (token === ')') {
+            stack.pop();
+        } else if (stack.length) {
+            const current = stack[stack.length - 1];
+            if (!current.name) {
+                current.name = token;
+            } else {
+                current.values.push(token);
+            }
+        }
+    });
+
+    if (!root) {
+        return astString;
+    }
+
+    const formatNode = (node, depth) => {
+        const indent = '  '.repeat(depth);
+        const header = node.values.length
+            ? `${indent}${node.name}: ${node.values.join(' ')}`
+            : `${indent}${node.name}`;
+        const lines = [header];
+
+        node.children.forEach(child => {
+            lines.push(formatNode(child, depth + 1));
+        });
+
+        return lines.join('\n');
+    };
+
+    return formatNode(root, 0);
+}
+
 function compileJavaCode(code, difficulty) {
     let allIssues = [];
+    let astRepresentation = '';
 
     // ANTLR-based grammar analysis
     function analyzeJavaGrammar(code) {
@@ -141,7 +199,13 @@ function compileJavaCode(code, difficulty) {
             lexer.addErrorListener(errorListener);
 
             // Parse the code - this will trigger error listener if there are syntax errors
-            parser.compilationUnit();
+            const tree = parser.compilationUnit();
+            if (tree && typeof tree.toStringTree === 'function') {
+                const rawAst = tree.toStringTree(parser.ruleNames);
+                astRepresentation = formatAstString(rawAst);
+
+                console.log(astRepresentation);
+            }
             
         } catch (error) {
             console.error('Exception during grammar analysis:', error);
@@ -171,6 +235,7 @@ function compileJavaCode(code, difficulty) {
     return {
         success: allIssues.length === 0,
         output: allIssues.length === 0 ? "Program compiled successfully." : "",
+        ast: astRepresentation,
         errors: allIssues
     };
 }
