@@ -107,6 +107,20 @@ public class MainDemo {
         System.out.print("Enhanced For Loop (numArray): ");
         for (int num : numArray) System.out.print(num + " ");
         System.out.println();
+
+
+
+        // === SIMPLE CALCULATION INSIDE MAIN ===
+        int sum = 10 + 20;
+        System.out.println("\nSum of 10 + 20 = " + sum);
+
+        String message = "This is a message inside main!";
+        System.out.println(message);
+
+
+
+
+        
     }
 }
 
@@ -199,6 +213,42 @@ function stripSuffix(raw, suffixes) {
     return trimmed;
 }
 
+function evaluateMathExpression(rawValue) {
+    const normalized = rawValue
+        .replace(/([0-9])([lLfF])/g, "$1")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    if (!normalized) {
+        return Number.NaN;
+    }
+
+    if (!/^[0-9+\-*/().% \s]+$/.test(normalized)) {
+        return Number.NaN;
+    }
+
+    try {
+        const evaluator = new Function(`"use strict"; return (${normalized});`);
+        const result = evaluator();
+        if (typeof result === "number" && Number.isFinite(result)) {
+            return result;
+        }
+    } catch {
+        // Ignore evaluation errors and fall back to NaN
+    }
+
+    return Number.NaN;
+}
+
+function parseNumericLiteral(rawValue, suffixes = []) {
+    const stripped = stripSuffix(rawValue, suffixes);
+    const direct = Number(stripped);
+    if (!Number.isNaN(direct)) {
+        return direct;
+    }
+    return evaluateMathExpression(stripped);
+}
+
 function validateLiteral(type, rawValue) {
     const result = {
         isValid: true,
@@ -208,11 +258,10 @@ function validateLiteral(type, rawValue) {
     };
 
     const normalizedBoolean = rawValue.toLowerCase();
-    const numericValue = Number(rawValue);
 
     switch (type) {
         case "byte": {
-            const parsed = Number(stripSuffix(rawValue, []));
+            const parsed = parseNumericLiteral(rawValue);
             const validation = validateNumericRange(parsed, -128, 127, "byte");
             if (!validation.isValid) {
                 return { ...result, ...validation };
@@ -224,7 +273,7 @@ function validateLiteral(type, rawValue) {
             };
         }
         case "short": {
-            const parsed = Number(stripSuffix(rawValue, []));
+            const parsed = parseNumericLiteral(rawValue);
             const validation = validateNumericRange(
                 parsed,
                 -32768,
@@ -242,7 +291,7 @@ function validateLiteral(type, rawValue) {
         }
         case "int":
         case "Integer": {
-            const parsed = Number(stripSuffix(rawValue, []));
+            const parsed = parseNumericLiteral(rawValue);
             const validation = validateNumericRange(
                 parsed,
                 -2147483648,
@@ -259,15 +308,14 @@ function validateLiteral(type, rawValue) {
             };
         }
         case "long": {
-            const stripped = stripSuffix(rawValue, ["l"]);
-            if (!/^-?\d+$/.test(stripped.trim())) {
+            const parsed = parseNumericLiteral(rawValue, ["l"]);
+            if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
                 return {
                     ...result,
                     isValid: false,
                     message: "long must be an integer literal",
                 };
             }
-            const parsed = Number(stripped);
             return {
                 ...result,
                 jsValue: parsed,
@@ -275,8 +323,7 @@ function validateLiteral(type, rawValue) {
             };
         }
         case "float": {
-            const stripped = stripSuffix(rawValue, ["f"]);
-            const parsed = Number(stripped);
+            const parsed = parseNumericLiteral(rawValue, ["f"]);
             if (!Number.isFinite(parsed)) {
                 return {
                     ...result,
@@ -292,7 +339,8 @@ function validateLiteral(type, rawValue) {
         }
         case "double":
         case "Double": {
-            if (!Number.isFinite(numericValue)) {
+            const parsed = parseNumericLiteral(rawValue);
+            if (!Number.isFinite(parsed)) {
                 return {
                     ...result,
                     isValid: false,
@@ -301,8 +349,8 @@ function validateLiteral(type, rawValue) {
             }
             return {
                 ...result,
-                jsValue: numericValue,
-                printValue: String(numericValue),
+                jsValue: parsed,
+                printValue: String(parsed),
             };
         }
         case "char": {
