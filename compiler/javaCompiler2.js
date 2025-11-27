@@ -163,6 +163,12 @@ const primitiveTypes = new Set([
 
 const nonPrimitiveTypes = new Set(["String", "Integer", "Double", "Boolean"]);
 
+function getSourceLabel(src) {
+    const classMatch = src.match(/\bclass\s+([A-Za-z_]\w*)/);
+    const className = classMatch ? classMatch[1] : "MainDemo";
+    return `${className}.java`;
+}
+
 function extractDeclarations(src) {
     const declarationPattern =
         /\b(byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)\s+([A-Za-z_]\w*)\s*=\s*([^;]+);/g;
@@ -458,7 +464,7 @@ function validateLiteral(type, rawValue) {
     }
 }
 
-function findInvalidSystemOutCalls(src) {
+function findInvalidSystemOutCalls(src, sourceLabel = "MainDemo.java") {
     const invalidCalls = [];
     const systemOutPattern = /System\.out\.([A-Za-z_]\w*)\s*\(/g;
     let match;
@@ -468,7 +474,7 @@ function findInvalidSystemOutCalls(src) {
         if (method !== "print" && method !== "println") {
             const line = src.slice(0, match.index).split("\n").length;
             invalidCalls.push(
-                `MainDemo.java:${line}: error: Unsupported System.out method "${method}". Only print and println are supported.`,
+                `${sourceLabel}:${line}: error: Unsupported System.out method "${method}". Only print and println are supported.`,
             );
         }
     }
@@ -570,39 +576,36 @@ function escapeNewlinesInStringLiterals(source) {
     return result;
 }
 
+const JAVA_TYPES_PATTERN =
+    "byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean";
+
 function convertMultiDimArrayDeclarations(source) {
-    const typePattern =
-        "(?:byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)";
     const multiPattern = new RegExp(
-        `(\\s*)${typePattern}(?:\\s*\\[\\s*\\])+\\s+([A-Za-z_]\\w*)\\s*=\\s*(\\{[\\s\\S]*?\\})\\s*;`,
+        `(\\s*)(${JAVA_TYPES_PATTERN})(?:\\s*\\[\\s*\\])+\\s+([A-Za-z_]\\w*)\\s*=\\s*(\\{[\\s\\S]*?\\})\\s*;`,
         "g",
     );
 
-    return source.replace(multiPattern, (_, indent, name, initializer) => {
+    return source.replace(multiPattern, (_, indent, type, name, initializer) => {
         const convertedInitializer = initializer.replace(/\{/g, "[").replace(/\}/g, "]");
-        return `${indent}let ${name} = ${convertedInitializer};`;
+        return `${indent}let ${name} = __wrapArray(${convertedInitializer}, "${type}");`;
     });
 }
 
 function convertArrayDeclarations(source) {
-    const typePattern =
-        "(?:byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)";
     const arrayPattern = new RegExp(
-        `(\\s*)${typePattern}\\s*\\[\\s*\\]\\s+([A-Za-z_]\\w*)\\s*=\\s*\\{([\\s\\S]*?)\\};`,
+        `(\\s*)(${JAVA_TYPES_PATTERN})\\s*\\[\\s*\\]\\s+([A-Za-z_]\\w*)\\s*=\\s*\\{([\\s\\S]*?)\\};`,
         "g",
     );
 
-    return source.replace(arrayPattern, (_, indent, name, values) => {
+    return source.replace(arrayPattern, (_, indent, type, name, values) => {
         const normalizedValues = values.replace(/\s*\n\s*/g, " ").trim();
-        return `${indent}let ${name} = [${normalizedValues}];`;
+        return `${indent}let ${name} = __wrapArray([${normalizedValues}], "${type}");`;
     });
 }
 
 function convertEnhancedForLoops(source) {
-    const typePattern =
-        "(?:final\\s+)?(?:byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)";
     const enhancedPattern = new RegExp(
-        `for\\s*\\(\\s*${typePattern}\\s+([A-Za-z_]\\w*)\\s*:\\s*([^\\)]+)\\)`,
+        `for\\s*\\(\\s*(?:final\\s+)?(?:${JAVA_TYPES_PATTERN})\\s+([A-Za-z_]\\w*)\\s*:\\s*([^\\)]+)\\)`,
         "g",
     );
 
@@ -611,22 +614,39 @@ function convertEnhancedForLoops(source) {
     });
 }
 
+function convertArrayInstantiations(source) {
+    const singleDimPattern = new RegExp(
+        `new\\s+(${JAVA_TYPES_PATTERN})\\s*\\[\\s*([^\\]\\[]+)\\s*\\]`,
+        "g",
+    );
+
+    return source.replace(
+        singleDimPattern,
+        (_, type, size) => `__createArray("${type}", ${size.trim()})`,
+    );
+}
+
 function transformJavaBodyToJs(body) {
     let transformed = body;
     transformed = convertMultiDimArrayDeclarations(transformed);
     transformed = convertArrayDeclarations(transformed);
     transformed = convertEnhancedForLoops(transformed);
+    transformed = convertArrayInstantiations(transformed);
     transformed = transformed.replace(/System\.out\.println/g, "__println");
     transformed = transformed.replace(/System\.out\.print/g, "__print");
     // Replace declarations with initialization
+    const baseTypePattern = `(?:${JAVA_TYPES_PATTERN})`;
     transformed = transformed.replace(
-      /\b(byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)\s+([A-Za-z_]\w*)(\s*=[^;]+;)/g,
-      "let $2$3"
+        new RegExp(
+            `\\b${baseTypePattern}(?:\\s*\\[\\s*\\])*\\s+([A-Za-z_]\\w*)(\\s*=[^;]+;)`,
+            "g",
+        ),
+        "let $1$2",
     );
-    // Replace declarations without initialization
+    // Replace declarations without initialization (including arrays)
     transformed = transformed.replace(
-      /\b(byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)\s+([A-Za-z_]\w*)\s*;/g,
-      "let $2;"
+        new RegExp(`\\b${baseTypePattern}(?:\\s*\\[\\s*\\])*\\s+([A-Za-z_]\\w*)\\s*;`, "g"),
+        "let $1;",
     );
     transformed = transformed.replace(/(\d+)[lL]\b/g, "$1");
     transformed = transformed.replace(/(\d+(?:\.\d+)?)[fF]\b/g, "$1");
@@ -634,18 +654,18 @@ function transformJavaBodyToJs(body) {
     return transformed;
 }
 
-function wrapMethodReturnStatements(body, method) {
+function wrapMethodReturnStatements(body, method, sourceLabel) {
     const errors = [];
     const returnRegex = /return(?:\s+([^;]*))?;/g;
     let hasReturn = false;
-    const linePrefix = method.line ? `MainDemo.java:${method.line}: ` : "MainDemo.java: ";
+    const linePrefix = method.line ? `${sourceLabel}:${method.line}: ` : `${sourceLabel}: `;
 
     const replaced = body.replace(returnRegex, (_, expr = "") => {
         const trimmedExpr = expr.trim();
         if (method.returnType === "void") {
             if (trimmedExpr) {
                 errors.push(
-                    `${linePrefix}error: cannot return a value from method ${method.name}() whose return type is void`,
+                `${linePrefix}error: cannot return a value from method ${method.name}() whose return type is void`,
                 );
             }
             return "return;";
@@ -743,7 +763,7 @@ function indentLines(code, indent = "    ") {
         .join("\n");
 }
 
-function validateReturnTypeName(returnType, methodName, lineNumber) {
+function validateReturnTypeName(returnType, methodName, lineNumber, sourceLabel) {
     const validTypes = new Set([
         "byte",
         "short",
@@ -761,7 +781,7 @@ function validateReturnTypeName(returnType, methodName, lineNumber) {
     ]);
 
     const trimmed = (returnType || "").trim();
-    const prefix = lineNumber ? `MainDemo.java:${lineNumber}: ` : "MainDemo.java: ";
+    const prefix = lineNumber ? `${sourceLabel}:${lineNumber}: ` : `${sourceLabel}: `;
 
     if (!trimmed) {
         return `${prefix}error: invalid return type for method ${methodName}()`;
@@ -781,12 +801,12 @@ function validateReturnTypeName(returnType, methodName, lineNumber) {
     return null;
 }
 
-function convertMethodsToJs(src) {
+function convertMethodsToJs(src, sourceLabel) {
     const methods = extractMethodDefinitions(src);
     const conversionErrors = [];
 
     methods.forEach((method) => {
-        const typeError = validateReturnTypeName(method.returnType, method.name, method.line);
+        const typeError = validateReturnTypeName(method.returnType, method.name, method.line, sourceLabel);
         if (typeError) {
             conversionErrors.push(typeError);
         }
@@ -796,7 +816,7 @@ function convertMethodsToJs(src) {
         .map((method) => {
             const paramsJs = convertMethodParameters(method.params);
             const transformedBody = transformJavaBodyToJs(method.body).trim();
-            const { body, errors } = wrapMethodReturnStatements(transformedBody, method);
+            const { body, errors } = wrapMethodReturnStatements(transformedBody, method, sourceLabel);
             conversionErrors.push(...errors);
             const indentedBody = body ? indentLines(body) : "";
             return `function ${method.name}(${paramsJs}) {\n${indentedBody}\n}\n`;
@@ -827,7 +847,7 @@ function normalizeParamSignature(params) {
         .join(", ");
 }
 
-function findStaticInvocationErrors(mainBody, methods) {
+function findStaticInvocationErrors(mainBody, methods, sourceLabel) {
     const errors = [];
 
     methods.forEach((method) => {
@@ -839,7 +859,7 @@ function findStaticInvocationErrors(mainBody, methods) {
         if (pattern.test(mainBody)) {
             const paramsSignature = normalizeParamSignature(method.params);
             errors.push(
-                `MainDemo.java: error: non-static method ${method.name}(${paramsSignature}) cannot be referenced from a static context`,
+                `${sourceLabel}: error: non-static method ${method.name}(${paramsSignature}) cannot be referenced from a static context`,
             );
         }
     });
@@ -847,16 +867,17 @@ function findStaticInvocationErrors(mainBody, methods) {
     return errors;
 }
 
-function executeJavaMain(src) {
+function executeJavaMain(src, sourceLabel) {
     const mainBody = extractMainMethodBody(src);
     if (!mainBody) {
         throw new Error(`Error: "main" method not found in class, please define the main method as: public static void main(String[] args)`);}
 
-    const methodConversion = convertMethodsToJs(src);
+    const methodConversion = convertMethodsToJs(src, sourceLabel);
     const methodErrors = [...methodConversion.errors];
     const staticInvocationErrors = findStaticInvocationErrors(
         mainBody,
         methodConversion.metadata,
+        sourceLabel,
     );
     const combinedErrors = [...methodErrors, ...staticInvocationErrors];
     if (combinedErrors.length > 0) {
@@ -868,17 +889,142 @@ function executeJavaMain(src) {
     }
 
     const jsBody = transformJavaBodyToJs(mainBody);
+    if (typeof process !== "undefined" && process.env && process.env.DEBUG_JS_BODY) {
+        console.log("=== TRANSFORMED MAIN BODY ===");
+        console.log(jsBody);
+        console.log("=== END TRANSFORMED MAIN BODY ===");
+    }
 
     try {
         const prefix = `
             const outputs = [];
             let currentLine = "";
+            const __sourceLabel = ${JSON.stringify(sourceLabel)};
             const __print = (value = "") => {
                 currentLine += String(value ?? "");
             };
             const __println = (value = "") => {
                 outputs.push(currentLine + String(value ?? ""));
                 currentLine = "";
+            };
+            const __arrayBoundsError = (index, length) => {
+                throw new Error(\`\${__sourceLabel}: error: ArrayIndexOutOfBoundsException: Index \${index} out of bounds for length \${length}\`);
+            };
+            const __isArrayIndex = (prop) => {
+                if (typeof prop === "symbol") return false;
+                if (prop === "") return false;
+                const key = String(prop);
+                if (!/^-?\\d+$/.test(key)) return false;
+                return true;
+            };
+            const __wrappedArrayToken = Symbol("javaArrayProxy");
+            const __wrapArray = (arrayInstance, type = "") => {
+                if (!Array.isArray(arrayInstance)) {
+                    return arrayInstance;
+                }
+                if (arrayInstance[__wrappedArrayToken]) {
+                    return arrayInstance[__wrappedArrayToken];
+                }
+                for (let i = 0; i < arrayInstance.length; i++) {
+                    if (Array.isArray(arrayInstance[i])) {
+                        arrayInstance[i] = __wrapArray(arrayInstance[i], type);
+                    }
+                }
+                const handler = {
+                    get(target, prop, receiver) {
+                        if (prop === "__isJavaArray") return true;
+                        if (prop === Symbol.iterator) {
+                            return function* iterator() {
+                                for (let i = 0; i < target.length; i++) {
+                                    yield target[i];
+                                }
+                            };
+                        }
+                        if (prop === "length" || typeof prop === "symbol") {
+                            return Reflect.get(target, prop, receiver);
+                        }
+                        if (__isArrayIndex(prop)) {
+                            const index = Number(prop);
+                            if (!Number.isInteger(index) || index < 0 || index >= target.length) {
+                                __arrayBoundsError(index, target.length);
+                            }
+                            const value = target[index];
+                            if (Array.isArray(value) && !value[__wrappedArrayToken]) {
+                                target[index] = __wrapArray(value, type);
+                                return target[index];
+                            }
+                            return value;
+                        }
+                        const value = Reflect.get(target, prop, receiver);
+                        if (typeof value === "function") {
+                            const methodName = String(prop);
+                            if (methodName === "push" || methodName === "pop" || methodName === "shift" || methodName === "unshift" || methodName === "splice") {
+                                return () => {
+                                    throw new Error(\`\${__sourceLabel}: error: Java arrays have fixed length; method \${methodName}() is not supported\`);
+                                };
+                            }
+                            return value.bind(target);
+                        }
+                        return value;
+                    },
+                    set(target, prop, value) {
+                        if (prop === "length") {
+                            throw new Error(\`\${__sourceLabel}: error: cannot assign to the length of a Java array\`);
+                        }
+                        if (__isArrayIndex(prop)) {
+                            const index = Number(prop);
+                            if (!Number.isInteger(index) || index < 0 || index >= target.length) {
+                                __arrayBoundsError(index, target.length);
+                            }
+                            const normalized = Array.isArray(value)
+                                ? __wrapArray(value, type)
+                                : value;
+                            target[index] = normalized;
+                            return true;
+                        }
+                        target[prop] = value;
+                        return true;
+                    },
+                };
+                const proxy = new Proxy(arrayInstance, handler);
+                Object.defineProperty(arrayInstance, __wrappedArrayToken, {
+                    value: proxy,
+                    writable: false,
+                    configurable: false,
+                    enumerable: false,
+                });
+                return proxy;
+            };
+            const __defaultArrayValue = (type) => {
+                const normalized = (type || "").trim();
+                switch (normalized) {
+                    case "byte":
+                    case "short":
+                    case "int":
+                    case "long":
+                    case "float":
+                    case "double":
+                    case "Integer":
+                    case "Double":
+                        return 0;
+                    case "boolean":
+                    case "Boolean":
+                        return false;
+                    case "char":
+                        return "\u0000";
+                    case "String":
+                        return null;
+                    default:
+                        return null;
+                }
+            };
+            const __createArray = (type, lengthValue) => {
+                const length = Number(lengthValue);
+                if (!Number.isFinite(length) || !Number.isInteger(length) || length < 0) {
+                    throw new Error(\`\${__sourceLabel}: error: invalid array size specified\`);
+                }
+                const backing = Array.from({ length }, () => __defaultArrayValue(type));
+                return __wrapArray(backing, type);
             };
             const __numericTypes = ["byte","short","int","long","float","double","integer"];
             const __integerTypes = ["byte","short","int","long","integer"];
@@ -944,7 +1090,7 @@ function executeJavaMain(src) {
             const __validateMethodReturn = (methodName, expectedType, value, lineNumber = 0) => {
                 const error = __checkReturnType(expectedType, value);
                 if (error) {
-                    const linePrefix = lineNumber ? \`MainDemo.java:\${lineNumber}:\` : "MainDemo.java:";
+                    const linePrefix = lineNumber ? \`\${__sourceLabel}:\${lineNumber}:\` : \`\${__sourceLabel}:\`;
                     throw new Error(\`\${linePrefix} error: \${error} in method \${methodName}()\`);
                 }
                 return value;
@@ -968,15 +1114,176 @@ function executeJavaMain(src) {
     }
 }
 
+function validateJavaSyntax(src, sourceLabel) {
+    const errors = [];
+    const lines = src.split('\n');
+    
+    // Check for unclosed strings and chars
+    lines.forEach((line, index) => {
+        const lineNum = index + 1;
+        const trimmed = line.trim();
+        
+        // Skip empty lines and comments
+        if (!trimmed || trimmed.startsWith('//')) return;
+        
+        // Check for unclosed double-quoted strings
+        let inString = false;
+        let escaped = false;
+        let stringStart = -1;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            
+            if (char === '\\') {
+                escaped = true;
+                continue;
+            }
+            
+            if (char === '"') {
+                if (inString) {
+                    inString = false;
+                } else {
+                    inString = true;
+                    stringStart = i;
+                }
+            }
+        }
+        
+        if (inString) {
+            errors.push(`${sourceLabel}:${lineNum}: error: unclosed string literal`);
+            return;
+        }
+        
+        // Check for unclosed single-quoted chars
+        let inChar = false;
+        let charStart = -1;
+        escaped = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            
+            if (char === '\\') {
+                escaped = true;
+                continue;
+            }
+            
+            if (char === "'") {
+                if (inChar) {
+                    inChar = false;
+                } else {
+                    inChar = true;
+                    charStart = i;
+                }
+            }
+        }
+        
+        if (inChar) {
+            errors.push(`${sourceLabel}:${lineNum}: error: unclosed character literal`);
+            return;
+        }
+    });
+    
+    // If we found string/char errors, return early
+    if (errors.length > 0) {
+        return errors;
+    }
+    
+    // Remove string literals and char literals to avoid false positives
+    function removeStringsAndChars(text) {
+        // Remove string literals
+        let result = text.replace(/"(?:[^"\\]|\\.)*"/g, '""');
+        // Remove char literals
+        result = result.replace(/'(?:[^'\\]|\\.)*'/g, "''");
+        return result;
+    }
+    
+    // Check for malformed for loops (missing semicolons in for statement)
+    lines.forEach((line, index) => {
+        const lineNum = index + 1;
+        const trimmed = line.trim();
+        
+        // Skip empty lines and comments
+        if (!trimmed || trimmed.startsWith('//')) return;
+        
+        if (trimmed.startsWith('for')) {
+            const forMatch = trimmed.match(/for\s*\((.*?)\)/);
+            if (forMatch) {
+                const forContent = forMatch[1];
+                // for loop should have 2 semicolons (3 parts)
+                const semicolonCount = (forContent.match(/;/g) || []).length;
+                if (semicolonCount !== 2 && !forContent.includes(':')) { // unless it's enhanced for
+                    errors.push(`${sourceLabel}:${lineNum}: error: malformed for loop - missing ';' in for statement`);
+                }
+            }
+        }
+    });
+    
+    // Check for unmatched brackets across the entire file
+    let bracketBalance = 0;
+    
+    lines.forEach((line, index) => {
+        const lineNum = index + 1;
+        const cleanLine = removeStringsAndChars(line);
+        
+        // Skip comments
+        if (line.trim().startsWith('//')) return;
+        
+        // Count brackets
+        for (const char of cleanLine) {
+            if (char === '[') bracketBalance++;
+            if (char === ']') {
+                bracketBalance--;
+                if (bracketBalance < 0 && errors.length === 0) {
+                    errors.push(`${sourceLabel}:${lineNum}: error: unexpected ']'`);
+                    return;
+                }
+            }
+        }
+    });
+    
+    // If brackets are still unbalanced at the end, report it
+    if (bracketBalance > 0 && errors.length === 0) {
+        // Find the last line with an opening bracket
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const cleanLine = removeStringsAndChars(lines[i]);
+            if (cleanLine.includes('[')) {
+                errors.push(`${sourceLabel}:${i + 1}: error: ']' expected`);
+                break;
+            }
+        }
+    }
+    
+    return errors;
+}
+
 function simulateSystemOutPrinting(src) {
+    const sourceLabel = getSourceLabel(src);
+    const syntaxErrors = validateJavaSyntax(src, sourceLabel);
+    
+    if (syntaxErrors.length > 0) {
+        let temp = '';
+        syntaxErrors.forEach((message) => temp += message + "\n");
+        return ' ' + temp;
+    }
+    
     const { errors } = extractDeclarations(src);
-    const syntaxErrors = findInvalidSystemOutCalls(src);
-    const allErrors = [...errors, ...syntaxErrors];
+    const systemOutErrors = findInvalidSystemOutCalls(src, sourceLabel);
+    const allErrors = [...errors, ...systemOutErrors];
     let executionResult = { outputs: [], methods: [], errors: [] };
 
     if (allErrors.length === 0) {
         try {
-            executionResult = executeJavaMain(src);
+            executionResult = executeJavaMain(src, sourceLabel);
             if (executionResult.errors && executionResult.errors.length > 0) {
                 allErrors.push(...executionResult.errors);
             }
