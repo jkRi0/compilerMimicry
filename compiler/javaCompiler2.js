@@ -1,6 +1,13 @@
 let code = `
 public class MainDemo {
     public static void main(String[] args) {
+        for(int i=0;i<10;i++){
+            if(i%2==0){
+                System.out.println("Even");
+            }else{
+                System.out.println("Odd");
+            }
+        }
 
         // === PRIMITIVES ===
         byte byteVar = 10;
@@ -166,21 +173,37 @@ function extractDeclarations(src) {
     while ((match = declarationPattern.exec(src)) !== null) {
         const [, type, name, value] = match;
         const trimmedValue = value.trim();
-        const validation = validateLiteral(type, trimmedValue);
 
-        if (!validation.isValid) {
-            errors.push(
-                `Invalid value for ${type} ${name}: ${validation.message}`,
-            );
+        // Only validate if the value is a simple literal
+        if (
+            /^[-+]?\d+$/.test(trimmedValue) || // Integer literal
+            /^[-+]?\d*\.\d+$/.test(trimmedValue) || // Floating
+            /^(["']).*\1$/.test(trimmedValue) || // Quoted string
+            trimmedValue === "true" || trimmedValue === "false"
+        ) {
+            const validation = validateLiteral(type, trimmedValue);
+            if (!validation.isValid) {
+                errors.push(
+                    `Invalid value for ${type} ${name}: ${validation.message}`,
+                );
+            }
+            declarations[name] = {
+                type,
+                literal: trimmedValue,
+                valueForPrinting: validation.printValue,
+                jsValue: validation.jsValue,
+                isValid: validation.isValid,
+            };
+        } else {
+            // Do NOT validate expressions (e.g., x + y), just store
+            declarations[name] = {
+                type,
+                literal: trimmedValue,
+                valueForPrinting: trimmedValue,
+                jsValue: null,
+                isValid: true,
+            };
         }
-
-        declarations[name] = {
-            type,
-            literal: trimmedValue,
-            valueForPrinting: validation.printValue,
-            jsValue: validation.jsValue,
-            isValid: validation.isValid,
-        };
     }
 
     return { declarations, errors };
@@ -595,9 +618,15 @@ function transformJavaBodyToJs(body) {
     transformed = convertEnhancedForLoops(transformed);
     transformed = transformed.replace(/System\.out\.println/g, "__println");
     transformed = transformed.replace(/System\.out\.print/g, "__print");
+    // Replace declarations with initialization
     transformed = transformed.replace(
-        /\b(byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)\s+([A-Za-z_]\w*)\s*=/g,
-        "let $2 =",
+      /\b(byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)\s+([A-Za-z_]\w*)(\s*=[^;]+;)/g,
+      "let $2$3"
+    );
+    // Replace declarations without initialization
+    transformed = transformed.replace(
+      /\b(byte|short|int|long|float|double|char|boolean|String|Integer|Double|Boolean)\s+([A-Za-z_]\w*)\s*;/g,
+      "let $2;"
     );
     transformed = transformed.replace(/(\d+)[lL]\b/g, "$1");
     transformed = transformed.replace(/(\d+(?:\.\d+)?)[fF]\b/g, "$1");
@@ -821,8 +850,7 @@ function findStaticInvocationErrors(mainBody, methods) {
 function executeJavaMain(src) {
     const mainBody = extractMainMethodBody(src);
     if (!mainBody) {
-        throw new Error("Unable to locate the main method body.");
-    }
+        throw new Error(`Error: "main" method not found in class, please define the main method as: public static void main(String[] args)`);}
 
     const methodConversion = convertMethodsToJs(src);
     const methodErrors = [...methodConversion.errors];
