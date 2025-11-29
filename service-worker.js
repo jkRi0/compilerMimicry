@@ -1,4 +1,4 @@
-const CACHE_NAME = 'code-evaluator-cache-v9';
+const CACHE_NAME = 'code-evaluator-cache-v12';
 
 // All static files to cache for offline use (190 files total)
 const FILES_TO_CACHE = [
@@ -269,6 +269,29 @@ function isExternal(url) {
   return EXTERNAL_PATTERNS.some(pattern => url.includes(pattern));
 }
 
+// Helper function to serve cached files with correct headers
+function serveCachedFile(cachedResponse, urlPath) {
+  // Ensure JavaScript files have correct MIME type for ES6 modules
+  if (urlPath.endsWith('.js') || urlPath.endsWith('.mjs')) {
+    // Check if Content-Type needs fixing
+    const contentType = cachedResponse.headers.get('Content-Type');
+    if (!contentType || !contentType.includes('javascript')) {
+      // Need to recreate with correct Content-Type for ES6 modules
+      const headers = new Headers(cachedResponse.headers);
+      headers.set('Content-Type', 'application/javascript; charset=utf-8');
+      return cachedResponse.text().then(body => {
+        return new Response(body, {
+          status: cachedResponse.status,
+          statusText: cachedResponse.statusText,
+          headers: headers
+        });
+      });
+    }
+    // Content-Type is already correct, serve as-is
+  }
+  return cachedResponse;
+}
+
 // Fetch strategy: Network first, cache fallback (for better dynamic loading)
 self.addEventListener('fetch', event => {
   const requestUrl = new URL(event.request.url);
@@ -302,42 +325,73 @@ self.addEventListener('fetch', event => {
       })
       .catch(() => {
         // Network failed, try cache
-        return caches.match(event.request)
-          .then(cachedResponse => {
-            if (cachedResponse) {
-              // Ensure JavaScript files have correct MIME type for ES6 modules
-              const url = new URL(event.request.url);
-              if (url.pathname.endsWith('.js')) {
-                // Check if Content-Type needs fixing
-                const contentType = cachedResponse.headers.get('Content-Type');
-                if (!contentType || !contentType.includes('javascript')) {
-                  // Need to recreate with correct Content-Type for ES6 modules
-                  const headers = new Headers(cachedResponse.headers);
-                  headers.set('Content-Type', 'application/javascript; charset=utf-8');
-                  return cachedResponse.text().then(body => {
-                    return new Response(body, {
-                      status: cachedResponse.status,
-                      statusText: cachedResponse.statusText,
-                      headers: headers
-                    });
-                  });
-                }
-                // Content-Type is already correct, serve as-is
+        const requestUrl = new URL(event.request.url);
+        const urlPath = requestUrl.pathname;
+        
+        // Try to find the file in cache using multiple URL formats
+        return caches.open(CACHE_NAME).then(cache => {
+          // Try exact match first
+          return cache.match(event.request)
+            .then(cachedResponse => {
+              if (cachedResponse) {
+                return serveCachedFile(cachedResponse, urlPath);
               }
-              return cachedResponse;
-            }
-            // If it's an HTML request and nothing cached, return index.html
-            const acceptHeader = event.request.headers.get('accept');
-            if (acceptHeader && acceptHeader.includes('text/html')) {
-              return caches.match('./index.html');
-            }
-            // Otherwise, return a proper error response
-            return new Response('Offline - resource not available', {
-              status: 503,
-              statusText: 'Service Unavailable',
-              headers: { 'Content-Type': 'text/plain' }
+              
+              // Try with leading dot (relative path) - how it was cached
+              const relativePath = '.' + urlPath;
+              return cache.match(new Request(relativePath, { method: 'GET' }))
+                .then(cachedResponse => {
+                  if (cachedResponse) {
+                    return serveCachedFile(cachedResponse, urlPath);
+                  }
+                  
+                  // Try without leading slash
+                  const noSlashPath = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+                  return cache.match(new Request(noSlashPath, { method: 'GET' }))
+                    .then(cachedResponse => {
+                      if (cachedResponse) {
+                        return serveCachedFile(cachedResponse, urlPath);
+                      }
+                      
+                      // Try with leading dot and slash - most common format in FILES_TO_CACHE
+                      const dotSlashPath = './' + noSlashPath;
+                      return cache.match(new Request(dotSlashPath, { method: 'GET' }))
+                        .then(cachedResponse => {
+                          if (cachedResponse) {
+                            return serveCachedFile(cachedResponse, urlPath);
+                          }
+                          
+                          // Try matching by URL pathname only (ignoring query/hash)
+                          return cache.match(urlPath, { ignoreSearch: true, ignoreMethod: true })
+                            .then(cachedResponse => {
+                              if (cachedResponse) {
+                                return serveCachedFile(cachedResponse, urlPath);
+                              }
+                              
+                              // If it's an HTML request and nothing cached, return index.html
+                              const acceptHeader = event.request.headers.get('accept');
+                              if (acceptHeader && acceptHeader.includes('text/html')) {
+                                return cache.match('./index.html');
+                              }
+                              
+                              // Log what we're looking for (only in dev)
+                              if (urlPath.includes('grammarLoader')) {
+                                console.log('[SW] Cache miss for grammarLoader:', urlPath);
+                                console.log('[SW] Tried formats:', event.request.url, relativePath, noSlashPath, dotSlashPath);
+                              }
+                              
+                              // Otherwise, return a proper error response
+                              return new Response('Offline - resource not available: ' + urlPath, {
+                                status: 503,
+                                statusText: 'Service Unavailable',
+                                headers: { 'Content-Type': 'text/plain' }
+                              });
+                            });
+                        });
+                    });
+                });
             });
-          });
+        });
       })
   );
 });
