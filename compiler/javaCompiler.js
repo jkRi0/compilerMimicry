@@ -137,24 +137,85 @@ function formatAstString(astString) {
     return formatNode(root, 0);
 }
 
-function compileJavaCode(code, difficulty) {
+async function compileJavaCode(code, difficulty) {
     let allIssues = [];
     let astRepresentation = '';
 
     // ANTLR-based grammar analysis
-    function analyzeJavaGrammar(code) {
-        // Check if ANTLR4 is available
+    async function analyzeJavaGrammar(code) {
+        // Wait for ANTLR4 to be ready if it's still loading
         if (!window.antlr4Ready || typeof window.antlr4 === 'undefined') {
-            console.warn('ANTLR4 not loaded yet, skipping grammar analysis');
-            allIssues.push({
-                id: 'antlr4-missing',
-                severity: 'error',
-                title: 'Analysis System Error',
-                desc: 'Grammar analysis system is not available. Please refresh the page and try again.',
-                line: 1,
-                excerpt: 'System error - analysis dependencies missing'
+            console.log('ANTLR4 not ready. Checking load promise...', {
+                hasPromise: !!window.antlr4LoadPromise,
+                antlr4Ready: window.antlr4Ready,
+                hasAntlr4: typeof window.antlr4 !== 'undefined'
             });
-            return null;
+            
+            if (window.antlr4LoadPromise) {
+                try {
+                    console.log('Waiting for ANTLR4 to load...');
+                    await window.antlr4LoadPromise;
+                    // Give it a moment to set window.antlr4Ready
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    console.log('After waiting, ANTLR4 status:', {
+                        antlr4Ready: window.antlr4Ready,
+                        hasAntlr4: typeof window.antlr4 !== 'undefined',
+                        hasJavaLexer: typeof window.JavaLexer !== 'undefined',
+                        hasJavaParser: typeof window.JavaParser !== 'undefined'
+                    });
+                } catch (error) {
+                    console.error('ANTLR4 failed to load:', error);
+                    console.error('Error stack:', error.stack);
+                    // Try to reload the grammar loader
+                    console.log('Attempting to reload grammar loader...');
+                    const grammarScript = document.createElement('script');
+                    grammarScript.type = 'module';
+                    grammarScript.src = './1j/analysis_grammars/grammarLoader.js';
+                    document.head.appendChild(grammarScript);
+                    // Wait a bit more
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            } else {
+                // No promise exists, try to load grammarLoader
+                console.log('No antlr4LoadPromise found. Attempting to load grammarLoader...');
+                const grammarScript = document.createElement('script');
+                grammarScript.type = 'module';
+                grammarScript.src = './1j/analysis_grammars/grammarLoader.js';
+                document.head.appendChild(grammarScript);
+                // Wait for it to load
+                let attempts = 0;
+                while ((!window.antlr4LoadPromise && !window.antlr4Ready) && attempts < 20) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                // If promise was created, wait for it
+                if (window.antlr4LoadPromise) {
+                    try {
+                        await window.antlr4LoadPromise;
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                    } catch (error) {
+                        console.error('ANTLR4 load promise failed:', error);
+                    }
+                }
+            }
+            
+            // Check again after waiting
+            if (!window.antlr4Ready || typeof window.antlr4 === 'undefined') {
+                console.warn('ANTLR4 not loaded yet, skipping grammar analysis', {
+                    antlr4Ready: window.antlr4Ready,
+                    hasAntlr4: typeof window.antlr4 !== 'undefined',
+                    hasPromise: !!window.antlr4LoadPromise
+                });
+                allIssues.push({
+                    id: 'antlr4-missing',
+                    severity: 'error',
+                    title: 'Analysis System Error',
+                    desc: 'Grammar analysis system is not available. Please refresh the page and try again.',
+                    line: 1,
+                    excerpt: 'System error - analysis dependencies missing'
+                });
+                return null;
+            }
         }
 
         if (typeof window.JavaLexer === 'undefined' || typeof window.JavaParser === 'undefined') {
@@ -220,8 +281,8 @@ function compileJavaCode(code, difficulty) {
         }
     }
 
-    // Run ANTLR grammar analysis
-    analyzeJavaGrammar(code);
+    // Run ANTLR grammar analysis (wait for it to complete)
+    await analyzeJavaGrammar(code);
 
     // Deduplicate issues
     const seen = {};

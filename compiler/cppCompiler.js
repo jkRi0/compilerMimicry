@@ -80,23 +80,37 @@ function simplifyErrorMessage(msg, offendingSymbol, code, line) {
     return 'Syntax error at this location';
 }
 
-function compileCppCode(code, difficulty) {
+async function compileCppCode(code, difficulty) {
     let allIssues = [];
 
     // ANTLR-based grammar analysis
-    function analyzeCppGrammar(code) {
-        // Check if ANTLR4 is available
+    async function analyzeCppGrammar(code) {
+        // Wait for ANTLR4 to be ready if it's still loading
         if (!window.antlr4Ready || typeof window.antlr4 === 'undefined') {
-            console.warn('ANTLR4 not loaded yet, skipping grammar analysis');
-            allIssues.push({
-                id: 'antlr4-missing',
-                severity: 'error',
-                title: 'Analysis System Error',
-                desc: 'Grammar analysis system is not available. Please refresh the page and try again.',
-                line: 1,
-                excerpt: 'System error - analysis dependencies missing'
-            });
-            return null;
+            if (window.antlr4LoadPromise) {
+                try {
+                    console.log('Waiting for ANTLR4 to load...');
+                    await window.antlr4LoadPromise;
+                    // Give it a moment to set window.antlr4Ready
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error('ANTLR4 failed to load:', error);
+                }
+            }
+            
+            // Check again after waiting
+            if (!window.antlr4Ready || typeof window.antlr4 === 'undefined') {
+                console.warn('ANTLR4 not loaded yet, skipping grammar analysis');
+                allIssues.push({
+                    id: 'antlr4-missing',
+                    severity: 'error',
+                    title: 'Analysis System Error',
+                    desc: 'Grammar analysis system is not available. Please refresh the page and try again.',
+                    line: 1,
+                    excerpt: 'System error - analysis dependencies missing'
+                });
+                return null;
+            }
         }
 
         if (typeof window.CPP14Lexer === 'undefined' || typeof window.CPP14Parser === 'undefined') {
@@ -157,7 +171,7 @@ function compileCppCode(code, difficulty) {
     }
 
     // Run ANTLR grammar analysis
-    analyzeCppGrammar(code);
+    await analyzeCppGrammar(code);
 
     // Deduplicate issues
     const seen = {};

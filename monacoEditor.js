@@ -1,5 +1,16 @@
 // Monaco Editor initialization and compilation functionality
 require.config({ paths: { 'vs': './node_modules/monaco-editor/min/vs' }});
+
+// Configure Monaco to use the correct worker path
+// This must be set BEFORE loading editor.main
+window.MonacoEnvironment = {
+    getWorkerUrl: function(moduleId, label) {
+        // Always use the editor worker for Java, C++, C#
+        // Use absolute URL based on current page location
+        return new URL('./node_modules/monaco-editor/min/vs/assets/editor.worker-DM0G1eFj.js', window.location).href;
+    }
+};
+
 require(['vs/editor/editor.main'], function() {
     // Initialize with default language - switchMonacoLanguage will update it when ready
     var editor = monaco.editor.create(document.getElementById('monaco-container'), {
@@ -16,7 +27,7 @@ require(['vs/editor/editor.main'], function() {
     // Keep console.log and console.error in browser console only
     // (Removed redirection to output terminal to keep it clean for program output)
 
-    document.getElementById('runCodeBtn').addEventListener('click', function() {
+    document.getElementById('runCodeBtn').addEventListener('click', async function() {
         const code = editor.getValue();
         const outputTerminal = document.getElementById('outputTerminal');
         // outputTerminal.textContent = ''; // Clear terminal
@@ -30,7 +41,7 @@ require(['vs/editor/editor.main'], function() {
         const selectedLanguageSpan = document.getElementById('selectedLanguage');
         const language = selectedLanguageSpan ? selectedLanguageSpan.textContent.toLowerCase() : 'java';
         
-        const result = window.compileCode(code, difficulty, language);
+        const result = await window.compileCode(code, difficulty, language);
 
         const output = window.simulateCode(code, language);
 
@@ -46,7 +57,7 @@ require(['vs/editor/editor.main'], function() {
             outputTerminal.style.color = '#ff0000';
             outputTerminal.textContent = "❌ Compile-time errors found:\n" + 
                 result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n')+
-                '\n'+(output[0]==' '?output:'');
+                '\n\n'+(output[0]==' '?output:'');
             // if (astText) {
             //     outputTerminal.textContent += astText;
             // }

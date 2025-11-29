@@ -1207,13 +1207,31 @@ function validateJavaSyntax(src, sourceLabel) {
         return result;
     }
     
-    // Check for malformed for loops (missing semicolons in for statement)
+    // Check for malformed for loops and System.out errors
     lines.forEach((line, index) => {
         const lineNum = index + 1;
         const trimmed = line.trim();
         
         // Skip empty lines and comments
         if (!trimmed || trimmed.startsWith('//')) return;
+        
+        // Check for .out.println (missing System)
+        if (trimmed.match(/^\s*\.out\.(print|println)/)) {
+            errors.push(`${sourceLabel}:${lineNum}: error: illegal start of expression - did you mean 'System.out'?`);
+            return;
+        }
+        
+        // Check for System.. (double dot)
+        if (trimmed.match(/System\.\./)) {
+            errors.push(`${sourceLabel}:${lineNum}: error: '.' not expected here - did you mean 'System.out'?`);
+            return;
+        }
+        
+        // Check for System.out.( without method name
+        if (trimmed.match(/System\.out\.\s*\(/)) {
+            errors.push(`${sourceLabel}:${lineNum}: error: '(' not expected here - missing method name after 'System.out.'`);
+            return;
+        }
         
         if (trimmed.startsWith('for')) {
             const forMatch = trimmed.match(/for\s*\((.*?)\)/);

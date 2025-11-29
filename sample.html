@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+    <style>
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .connection-status.online {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .connection-status.offline {
+            background-color: #f44336;
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <style>
@@ -99,5 +121,26 @@
         }, 80);
     };
     </script>
+    
+    <!-- Connection Status Indicator -->
+    <div id="connection-status" class="connection-status" style="display: none;"></div>
+    
+    <!-- Service Worker Registration -->
+    <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(registration => {
+            console.log('[App] ServiceWorker registration successful with scope:', registration.scope);
+          })
+          .catch(error => {
+            console.error('[App] ServiceWorker registration failed:', error);
+          });
+      });
+    }
+    </script>
+    
+    <!-- Connection Monitor -->
+    <script src="./connectionMonitor.js"></script>
 </body>
 </html>

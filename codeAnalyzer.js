@@ -1,10 +1,10 @@
-function compileCode(code, difficulty, language = 'java') {
+async function compileCode(code, difficulty, language = 'java') {
     // Route to appropriate analysis based on language
     switch(language.toLowerCase()) {
         case 'c++':
         case 'cpp':
             if (typeof window.compileCppCode === 'function') {
-                return window.compileCppCode(code, difficulty);
+                return await window.compileCppCode(code, difficulty);
             } else {
                 return {
                     success: false,
@@ -22,7 +22,7 @@ function compileCode(code, difficulty, language = 'java') {
         case 'c#':
         case 'csharp':
             if (typeof window.compileCsharpCode === 'function') {
-                return window.compileCsharpCode(code, difficulty);
+                return await window.compileCsharpCode(code, difficulty);
             } else {
                 return {
                     success: false,
@@ -40,7 +40,7 @@ function compileCode(code, difficulty, language = 'java') {
         case 'java':
         default:
             if (typeof window.compileJavaCode === 'function') {
-                return window.compileJavaCode(code, difficulty);
+                return await window.compileJavaCode(code, difficulty);
             } else {
                 return {
                     success: false,

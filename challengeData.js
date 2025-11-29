@@ -138,6 +138,36 @@ function switchAnalysisGrammar(language) {
     const grammarScript = document.createElement('script');
     grammarScript.type = 'module';
     grammarScript.src = `./${grammarFolder}/grammarLoader.js`;
+    
+    // Wait for the script to load and ANTLR4 to be ready
+    grammarScript.onload = async function() {
+        try {
+            // Wait for ANTLR4 to finish loading
+            if (window.antlr4LoadPromise) {
+                await window.antlr4LoadPromise;
+                console.log('Grammar analysis system ready for', language);
+            } else {
+                // Fallback: wait a bit and check again
+                let attempts = 0;
+                while (!window.antlr4Ready && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                if (window.antlr4Ready) {
+                    console.log('Grammar analysis system ready for', language);
+                } else {
+                    console.warn('Grammar analysis system failed to load for', language);
+                }
+            }
+        } catch (error) {
+            console.error('Error waiting for ANTLR4:', error);
+        }
+    };
+    
+    grammarScript.onerror = function(error) {
+        console.error('Failed to load grammar script:', error);
+    };
+    
     document.head.appendChild(grammarScript);
     
     // Analysis grammar switched
@@ -181,6 +211,9 @@ function fetchCurrentLanguage() {
 // Load and display selected challenge data from localStorage
 function loadSelectedChallengeData() {
     try {
+        // TEMPORARY TESTING: Set default challenge data
+        localStorage.setItem('selectedChallenge', '{"level":"lev1","difficulty":"easy","timestamp":"2025-11-29T00:26:52.687Z"}');
+        
         const selectedData = localStorage.getItem('selectedChallenge');
         if (selectedData) {
             const data = JSON.parse(selectedData);
@@ -202,7 +235,18 @@ function loadSelectedChallengeData() {
             }
             
             // Fetch and display current programming language
+            // This will also load the grammar analysis system
             fetchCurrentLanguage();
+            
+            // Ensure grammar loader is loaded even if switchLanguage hasn't run yet
+            // This is important for offline mode
+            setTimeout(() => {
+                if (!window.antlr4Ready && !window.antlr4LoadPromise) {
+                    console.log('Grammar loader not loaded yet, initializing...');
+                    const defaultLanguage = data.language || 'java';
+                    switchAnalysisGrammar(defaultLanguage);
+                }
+            }, 500);
             
             console.log('Loaded challenge data:', data);
             
