@@ -95,7 +95,10 @@
         <div id="outputLabel">Terminal Output:</div>
         <div id="outputTerminal"></div>
     </div>
-    <script src="compiler/javaCompiler2.js"></script>
+    <!-- <script src="compiler/javaCompiler2.js"></script> -->
+
+    <!-- <script src="compiler/JSCPP.es5.min.js"></script> -->
+    <script src="compiler/cppCompiler2.js"></script>
     <script>
     const runBtn = document.getElementById('runBtn');
     const input = document.getElementById('javaCodeInput');
@@ -103,44 +106,16 @@
     runBtn.onclick = function() {
         terminalDiv.textContent = 'Running...';
         setTimeout(() => {
-            try {
-                if(typeof window.simulateJavaOutput !== 'function') {
-                    terminalDiv.textContent = 'Error: Java runtime not loaded.';
-                    return;
-                }
-                const code = input.value;
-                const result = window.simulateJavaOutput(code);
-                if(result === undefined || result === null) {
-                    terminalDiv.textContent = '(No output)';
-                } else {
-                    terminalDiv.textContent = String(result).trim();
-                }
-            } catch (e) {
-                terminalDiv.textContent = 'Runtime Error: ' + e.message;
+            const code = input.value;
+            const result = window.simulateCppOutput(code);
+            if(result === undefined || result === null) {
+                terminalDiv.textContent = '(No output)';
+            } else {
+                terminalDiv.textContent = String(result).trim();
             }
         }, 80);
     };
     </script>
     
-    <!-- Connection Status Indicator -->
-    <div id="connection-status" class="connection-status" style="display: none;"></div>
-    
-    <!-- Service Worker Registration -->
-    <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-          .then(registration => {
-            console.log('[App] ServiceWorker registration successful with scope:', registration.scope);
-          })
-          .catch(error => {
-            console.error('[App] ServiceWorker registration failed:', error);
-          });
-      });
-    }
-    </script>
-    
-    <!-- Connection Monitor -->
-    <script src="./connectionMonitor.js"></script>
 </body>
 </html>

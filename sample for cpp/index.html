@@ -10,37 +10,32 @@
     <script type="text/javascript">
         var code = 	`
         #include <iostream>
-#include <string>
+        #include <string>
 using namespace std;
 
-// Method returning a value
-// int addNumbers(int a, int b) {
-//     return a + b;
-// }
+//Method returning a value
+int addNumbers(int a, int b) {
+    return a + b;
+}
 
-// // Method with no return
-// void printMessage(const string& msg) {
-//     cout << "Message: " << msg << endl;
-// }
+// Method with no return
+void printMessage(const string& msg) {
+    cout << "Message: " << msg << endl;
+}
 
-// string getMessage() {
-//     return "This is a message from the method!";
-// }
+string getMessage() {
+    return "This is a message from the method!";
+}
 
 int main() {
 
     // === PRIMITIVES ===
-    int8_t byteVar = 10;     // C++ doesn't have exact 'byte', so int8_t is closest
     short shortVar = 300;
     int intVar = 50000;
-    long longVar = 90000000000LL;
-
     float floatVar = 3.14f;
     double doubleVar = 3.14159265359;
-
     char charVar = 'A';
     bool boolVar = true;
-
     // === NON-PRIMITIVES ===
     string stringVar = "Hello Java!";
     int wrapperInt = 42;
@@ -49,55 +44,30 @@ int main() {
 
     // Print primitives
     cout << "=== PRIMITIVES ===" << endl;
-    cout << "byte: " << (int)byteVar << endl; // Cast to int for readable output
     cout << "short: " << shortVar << endl;
     cout << "int: " << intVar << endl;
-    cout << "long: " << longVar << endl;
     cout << "float: " << floatVar << endl;
     cout << "double: " << doubleVar << endl;
     cout << "char: " << charVar << endl;
-    cout << "boolean: " << boolalpha << boolVar << endl;
-
-    cout << "\n=== NON-PRIMITIVES ===" << endl;
+    cout << "boolean: " << boolVar << endl;
+    
+    cout << "=== NON-PRIMITIVES ===" << endl;
     cout << "String: " << stringVar << endl;
     cout << "Integer wrapper: " << wrapperInt << endl;
     cout << "Double wrapper: " << wrapperDouble << endl;
-    cout << "Boolean wrapper: " << boolalpha << wrapperBoolean << endl;
-
-    cout << "\n123" << "456" << endl;
+    
+    cout << "123" << "456" << endl;
     cout << " 123" << 456;
     cout << (123 + 456) << endl;
 
-    // === ARRAYS ===
-    int numArray[] = {1, 2, 3, 4, 5};
-    string strArray[] = {"One", "Two", "Three"};
-    int matrix[2][3] = {
-        {1, 2, 3},
-        {4, 5, 6}
-    };
-
-    cout << "\n1D Array: ";
-    for (int num : numArray) cout << num << " ";
-    cout << endl;
-
-    cout << "String Array: ";
-    for (const string& s : strArray) cout << s << " ";
-    cout << endl;
-
-    cout << "2D Array:" << endl;
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 3; j++) {
-            cout << matrix[i][j] << " ";
-        }
-        cout << endl;
-    }
+    
 
     // === CONTROL FLOW ===
     int value = 10;
     if (value > 5) {
-        cout << "\nValue is greater than 5" << endl;
+        cout << "Value is greater than 5" << endl;
     } else {
-        cout << "\nValue is 5 or less" << endl;
+        cout << "Value is 5 or less" << endl;
     }
 
     int day = 3;
@@ -109,7 +79,7 @@ int main() {
     }
 
     // === LOOPS ===
-    cout << "\nFor Loop: ";
+    cout << "For Loop: ";
     for (int i = 1; i <= 5; i++) cout << i << " ";
     cout << endl;
 
@@ -129,39 +99,79 @@ int main() {
     } while (d <= 5);
     cout << endl;
 
-    cout << "Enhanced For Loop (numArray): ";
-    for (int num : numArray) cout << num << " ";
-    cout << endl;
 
     // === SIMPLE CALCULATION INSIDE MAIN ===
     int sum = 10 + 20;
-    cout << "\nSum of 10 + 20 = " << sum << endl;
+    cout << "Sum of 10 + 20 = " << sum << endl;
 
-    // string message = "This is a message inside main!";
-    // cout << message << endl;
+    string message = "This is a message inside main!";
+    cout << message << endl;
 
-    // cout << "Sum via method: " << addNumbers(10, 20) << endl;
-    // printMessage("This is a custom message!");
+    cout << "Sum via method: " << addNumbers(10, 20) << endl;
+    printMessage("This is a custom message!");
 
-    // cout << "Message from method: " << getMessage() << endl;
+    cout << "Message from method: " << getMessage() << endl;
+
+
+    string message = "This is a message inside main!";
+    cout << message << endl;
+
+
+
+
+    // === ARRAYS ===
+    int numArray[] = {1, 2, 3, 4, 5};
+    string strArray[] = {"One", "Two", "Three"};
+    int matrix[2][3] = {
+        {1, 2, 3},
+        {4, 5, 6}
+    };
+
+    cout << "1D Array: ";
+    for (int num : numArray) cout << num << " ";
+    cout << endl;
+
+    cout << "1D Array: ";
+    for (int num : numArray) cout << num << " ";
+    cout << endl;
+
+    cout << "String Array: ";
+    for (const string& s : strArray) cout << s << " ";
+    cout << endl;
+
+    cout << "2D Array:" << endl;
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 3; j++) {
+            cout << matrix[i][j] << " ";
+        }
+        cout << endl;
+    }
+cout << strArray[0] << " ";
+cout << strArray[1] << " ";
+cout << strArray[2] << " ";
 
     return 0;
 }
 
         `
         ;
-        var input = "";
-        var output = "";
-        var config = {
-            stdio: {
-                write: function(s) {
-                    output += s;
-                }
-            },
-            unsigned_overflow: "error" // can be "error"(default), "warn" or "ignore"
-        };
-        var exitCode = JSCPP.run(code, input, config);
-        console.log(output + "\nprogram exited with code " + exitCode);
+        // var input = "";
+        // var output = "";
+        // var config = {
+        //     stdio: {
+        //         write: function(s) {
+        //             output += s;
+        //         }
+        //     },
+        //     unsigned_overflow: "error" // can be "error"(default), "warn" or "ignore"
+        // };
+        // var exitCode = JSCPP.run(code, input, config);
+        // console.log(output + "\nprogram exited with code " + exitCode);
+
+
+        console.log(simulateCppOutput(code));
+        console.log("\nORIGINAL: "+code);
+        console.log("PROCESSED: "+preprocessCppCode(code));
     </script>
 </body>
 </html>

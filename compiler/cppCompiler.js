@@ -184,7 +184,7 @@ async function compileCppCode(code, difficulty) {
 
     return {
         success: allIssues.length === 0,
-        output: allIssues.length === 0 ? "Program compiled successfully." : "",
+        output: allIssues.length === 0 ? "" : "",
         errors: allIssues
     };
 }

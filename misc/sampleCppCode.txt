@@ -3,18 +3,18 @@
 using namespace std;
 
 // Method returning a value
-int addNumbers(int a, int b) {
-    return a + b;
-}
+// int addNumbers(int a, int b) {
+//     return a + b;
+// }
 
-// Method with no return
-void printMessage(const string& msg) {
-    cout << "Message: " << msg << endl;
-}
+// // Method with no return
+// void printMessage(const string& msg) {
+//     cout << "Message: " << msg << endl;
+// }
 
-string getMessage() {
-    return "This is a message from the method!";
-}
+// string getMessage() {
+//     return "This is a message from the method!";
+// }
 
 int main() {
 
@@ -126,13 +126,13 @@ int main() {
     int sum = 10 + 20;
     cout << "\nSum of 10 + 20 = " << sum << endl;
 
-    string message = "This is a message inside main!";
-    cout << message << endl;
+    // string message = "This is a message inside main!";
+    // cout << message << endl;
 
-    cout << "Sum via method: " << addNumbers(10, 20) << endl;
-    printMessage("This is a custom message!");
+    // cout << "Sum via method: " << addNumbers(10, 20) << endl;
+    // printMessage("This is a custom message!");
 
-    cout << "Message from method: " << getMessage() << endl;
+    // cout << "Message from method: " << getMessage() << endl;
 
     return 0;
 }
