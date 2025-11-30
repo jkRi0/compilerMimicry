@@ -1011,7 +1011,74 @@ function preprocessCppCode(src) {
     return processed;
 }
 
+/**
+ * Validates C++ code for duplicate variable declarations
+ * Returns array of error messages if duplicates are found
+ */
+function validateCppSyntax(src) {
+    const errors = [];
+    const lines = src.split('\n');
+    
+    // Track variable declarations in the current scope
+    const declaredVars = new Set();
+    
+    // Pattern to match variable declarations: type varName = value; or type varName;
+    // Handles: int x = 5;, const char* msg = "hello";, string arr[] = {...};
+    const varDeclPattern = /\b(?:int|short|long|float|double|char|bool|const\s+char\s*\*|string|const\s+string\s*&)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\[|;|=)/g;
+    
+    lines.forEach((line, index) => {
+        const lineNum = index + 1;
+        const trimmed = line.trim();
+        
+        // Skip empty lines, comments, and preprocessor directives
+        if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#include') || trimmed.startsWith('using')) {
+            return;
+        }
+        
+        // Reset scope when we enter a new function (simple heuristic)
+        if (trimmed.includes('{') && (trimmed.includes('main()') || trimmed.includes('int main'))) {
+            declaredVars.clear();
+        }
+        
+        // Check for variable declarations
+        let match;
+        const lineWithoutStrings = line.replace(/"[^"]*"/g, '""'); // Remove string literals to avoid false matches
+        
+        while ((match = varDeclPattern.exec(lineWithoutStrings)) !== null) {
+            const varName = match[1];
+            
+            // Skip if it's a function parameter (inside parentheses)
+            const beforeMatch = line.substring(0, match.index);
+            const openParens = (beforeMatch.match(/\(/g) || []).length;
+            const closeParens = (beforeMatch.match(/\)/g) || []).length;
+            if (openParens > closeParens) {
+                continue; // Likely a function parameter
+            }
+            
+            // Check for duplicate declaration
+            if (declaredVars.has(varName)) {
+                errors.push(`main.cpp:${lineNum}: error: redeclaration of '${varName}'`);
+            } else {
+                declaredVars.add(varName);
+            }
+        }
+        
+        // Reset regex lastIndex for next line
+        varDeclPattern.lastIndex = 0;
+    });
+    
+    return errors;
+}
+
 function simulateCppOutput(src) {
+    // First validate for duplicate variable declarations
+    const syntaxErrors = validateCppSyntax(src);
+    if (syntaxErrors.length > 0) {
+        let errorMsg = '';
+        syntaxErrors.forEach((message) => errorMsg += message + "\n");
+        return ' ' + errorMsg;
+    }
+    
     // Preprocess the code to convert unsupported features
     var processedCode = preprocessCppCode(src);
     
