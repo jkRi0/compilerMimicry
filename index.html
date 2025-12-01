@@ -215,11 +215,14 @@
 
             // Run Code Button Event Listener
             document.getElementById('runCodeBtn').addEventListener('click', async function() {
+                // Get code from Monaco editor in iframe
+                console.log('Requesting code from Monaco editor iframe...');
                 const code = await window.getEditorCode();
+                console.log('Code received from Monaco editor iframe!');
+                
                 const outputTerminal = document.getElementById('outputTerminal');
                 // outputTerminal.textContent = ''; // Clear terminal
 
-                console.log('Running code:', code); // Debug log
                 
                 const selectedDifficultySpan = document.getElementById('selectedDifficulty');
                 const difficulty = selectedDifficultySpan ? selectedDifficultySpan.textContent.toLowerCase() : 'easy';
@@ -228,9 +231,17 @@
                 const selectedLanguageSpan = document.getElementById('selectedLanguage');
                 const language = selectedLanguageSpan ? selectedLanguageSpan.textContent.toLowerCase() : '';
                 
+                // Display code from Monaco editor in console
+                console.log('Code from Monaco editor:', code);
+                console.log('Code length:', code.length, 'characters');
+                // console.log('First 100 characters:', code.substring(0, 100));
+                outputTerminal.textContent = await window.simulateCode(code, language);
 
-                
-                // var input = "";
+
+
+
+
+
                 // var output = "";
                 // var config = {
                 //     stdio: {
@@ -302,10 +313,10 @@
 </div>
 
 <!-- Connection Status Indicator -->
-<div id="connection-status" class="connection-status" style="display: none;"></div>
+<!-- <div id="connection-status" class="connection-status" style="display: none;"></div> -->
 
 <!-- Service Worker Registration -->
-<script>
+<!-- <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./service-worker.js')
@@ -317,7 +328,7 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
-</script>
+</script> -->
 
 <!-- Connection Monitor -->
-<script src="./connectionMonitor.js"></script>
+<!-- <script src="./connectionMonitor.js"></script> -->

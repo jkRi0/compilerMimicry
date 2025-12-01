@@ -108,10 +108,14 @@
             // Listen for messages from parent window
             window.addEventListener('message', function(event) {
                 if (event.data.type === 'get-code') {
+                    // Get code directly from Monaco editor instance
+                    const code = editor.getValue();
+                    console.log('[Monaco Editor] Getting code from editor:', code.length, 'characters');
+                    console.log('[Monaco Editor] First 100 chars:', code.substring(0, 100));
                     // Send code back to parent
                     window.parent.postMessage({
                         type: 'code-response',
-                        code: editor.getValue()
+                        code: code
                     }, '*');
                 } else if (event.data.type === 'set-language') {
                     // Switch language
