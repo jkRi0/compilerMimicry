@@ -6,7 +6,7 @@
     <title>Challenge Page</title>
     <link rel="stylesheet" href="styles.css">
     <!-- Monaco Editor script -->
-    <script src="./node_modules/monaco-editor/min/vs/loader.js"></script>
+    <!-- <script src="./node_modules/monaco-editor/min/vs/loader.js"></script> -->
     <style>
         .connection-status {
             position: fixed;
@@ -63,7 +63,7 @@
         </div>
     </div>
     <div class="code-editor-div">
-        <div id="monaco-container" style="width: 100%; height: 100%;"></div>
+        <iframe id="monaco-editor-iframe" src="monaco-editor.html" style="width: 100%; height: 100%; border: none;"></iframe>
     </div>
     <div class="output-terminal" id="outputTerminal">OUTPUT TERMINAL >>></div>
 
@@ -110,21 +110,99 @@
     <!-- External JavaScript Files -->
     <!-- <script type="module" src="./1j/analysis_grammars/grammarLoader.js"></script> -->
     <!-- Compiler files (loaded before codeAnalyzer.js) -->
+     
+    <script src="codeSimulation.js"></script>
     <script src="compiler/javaCompiler2.js"></script>
     <script src="compiler/cppCompiler2.js"></script>
-    <script src="codeSimulation.js"></script>
+    <script src="compiler/csharpCompiler2.js"></script>
 
     <script src="compiler/javaCompiler.js"></script>
     <script src="compiler/cppCompiler.js"></script>
     <script src="compiler/csharpCompiler.js"></script>
     <script src="codeAnalyzer.js"></script>
-    <script src="monacoEditor.js"></script>
+    <!-- <script src="monacoEditor.js"></script> -->
     <script src="challengeData.js"></script>
     <script src="modalManager.js"></script>
     <script src="tips.js"></script>
     <script src="mobileControls.js"></script>
     <script>
+        // Iframe communication handler
+        let editorIframe = null;
+        let editorReady = false;
+        let pendingCodeRequest = null;
+
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'editor-ready') {
+                editorReady = true;
+                console.log('Monaco editor in iframe is ready');
+                // If there's a pending code request, handle it now
+                if (pendingCodeRequest) {
+                    pendingCodeRequest();
+                    pendingCodeRequest = null;
+                }
+            } else if (event.data.type === 'code-response') {
+                // Handle code response from iframe
+                if (window.onCodeReceived) {
+                    window.onCodeReceived(event.data.code);
+                    window.onCodeReceived = null;
+                }
+            } else if (event.data.type === 'language-switched') {
+                console.log('Language switched in iframe:', event.data.language);
+            } else if (event.data.type === 'code-changed') {
+                // Optional: handle code changes in real-time if needed
+            }
+        });
+
+        // Function to get code from iframe editor
+        window.getEditorCode = function() {
+            return new Promise((resolve) => {
+                if (editorReady && editorIframe) {
+                    window.onCodeReceived = resolve;
+                    editorIframe.contentWindow.postMessage({ type: 'get-code' }, '*');
+                } else {
+                    // Wait for editor to be ready
+                    pendingCodeRequest = function() {
+                        window.onCodeReceived = resolve;
+                        editorIframe.contentWindow.postMessage({ type: 'get-code' }, '*');
+                    };
+                }
+            });
+        };
+
+        // Function to set language in iframe editor
+        window.setEditorLanguage = function(language) {
+            if (editorReady && editorIframe) {
+                editorIframe.contentWindow.postMessage({
+                    type: 'set-language',
+                    language: language
+                }, '*');
+            } else {
+                // Wait for editor to be ready
+                const checkReady = setInterval(() => {
+                    if (editorReady && editorIframe) {
+                        editorIframe.contentWindow.postMessage({
+                            type: 'set-language',
+                            language: language
+                        }, '*');
+                        clearInterval(checkReady);
+                    }
+                }, 100);
+            }
+        };
+
+        // Function to set code in iframe editor
+        window.setEditorCode = function(code) {
+            if (editorReady && editorIframe) {
+                editorIframe.contentWindow.postMessage({
+                    type: 'set-code',
+                    code: code
+                }, '*');
+            }
+        };
+
         document.addEventListener('DOMContentLoaded', function() {
+            editorIframe = document.getElementById('monaco-editor-iframe');
+            
             loadSelectedChallengeData();
             const selectedData = JSON.parse(localStorage.getItem('selectedChallenge'));
             if (selectedData && selectedData.level) {
@@ -134,8 +212,64 @@
                 // Load with default Java language initially, will be switched when language is fetched
                 loadLevelScripts(levelNumber, 'java');
             }
+
+            // Run Code Button Event Listener
+            document.getElementById('runCodeBtn').addEventListener('click', async function() {
+                const code = await window.getEditorCode();
+                const outputTerminal = document.getElementById('outputTerminal');
+                // outputTerminal.textContent = ''; // Clear terminal
+
+                console.log('Running code:', code); // Debug log
+                
+                const selectedDifficultySpan = document.getElementById('selectedDifficulty');
+                const difficulty = selectedDifficultySpan ? selectedDifficultySpan.textContent.toLowerCase() : 'easy';
+                
+                // Get current language
+                const selectedLanguageSpan = document.getElementById('selectedLanguage');
+                const language = selectedLanguageSpan ? selectedLanguageSpan.textContent.toLowerCase() : '';
+                
+
+                
+                // var input = "";
+                // var output = "";
+                // var config = {
+                //     stdio: {
+                //         write: function(s) {
+                //             output += s;
+                //         }
+                //     },
+                //     unsigned_overflow: "error" // can be "error"(default), "warn" or "ignore"
+                // };
+                // var exitCode = JSCPP.run(code, input, config);
+                // console.log(output + "\nprogram exited with code " + exitCode);
+
+
+                // const result = await window.compileCode(code, difficulty, language);
+
+                // const output = await window.simulateCode(code, language);
+
+                // console.log('Simulation result:', output);
+                // console.log('Compilation result:', result); // Debug log
+
+
+                // // const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
+                // if (result.success&&output[0]!=' ') {
+                //     outputTerminal.style.color = '#00ff00';
+                //     outputTerminal.textContent = `OUTPUT TERMINAL >>>${result.output}\n\n${output}`;
+                // } else {
+                //     outputTerminal.style.color = '#ff0000';
+                //     outputTerminal.textContent = "❌ Compile-time errors found:\n" + 
+                //         result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n')+
+                //         '\n\n'+(output[0]==' '?output:'');
+                //     // if (astText) {
+                //     //     outputTerminal.textContent += astText;
+                //     // }
+                // }
+            });
         });
     </script>
+
+
 </body>
 </html>
 

@@ -39,28 +39,44 @@ require(['vs/editor/editor.main'], function() {
         
         // Get current language
         const selectedLanguageSpan = document.getElementById('selectedLanguage');
-        const language = selectedLanguageSpan ? selectedLanguageSpan.textContent.toLowerCase() : 'java';
+        const language = selectedLanguageSpan ? selectedLanguageSpan.textContent.toLowerCase() : '';
         
-        const result = await window.compileCode(code, difficulty, language);
 
-        const output = window.simulateCode(code, language);
+        
+        // var input = "";
+        // var output = "";
+        // var config = {
+        //     stdio: {
+        //         write: function(s) {
+        //             output += s;
+        //         }
+        //     },
+        //     unsigned_overflow: "error" // can be "error"(default), "warn" or "ignore"
+        // };
+        // var exitCode = JSCPP.run(code, input, config);
+        // console.log(output + "\nprogram exited with code " + exitCode);
 
-        console.log('Simulation result:', output);
-        console.log('Compilation result:', result); // Debug log
+
+        // const result = await window.compileCode(code, difficulty, language);
+
+        // const output = await window.simulateCode(code, language);
+
+        // console.log('Simulation result:', output);
+        // console.log('Compilation result:', result); // Debug log
 
 
-        // const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
-        if (result.success&&output[0]!=' ') {
-            outputTerminal.style.color = '#00ff00';
-            outputTerminal.textContent = `OUTPUT TERMINAL >>>${result.output}\n\n${output}`;
-        } else {
-            outputTerminal.style.color = '#ff0000';
-            outputTerminal.textContent = "❌ Compile-time errors found:\n" + 
-                result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n')+
-                '\n\n'+(output[0]==' '?output:'');
-            // if (astText) {
-            //     outputTerminal.textContent += astText;
-            // }
-        }
+        // // const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
+        // if (result.success&&output[0]!=' ') {
+        //     outputTerminal.style.color = '#00ff00';
+        //     outputTerminal.textContent = `OUTPUT TERMINAL >>>${result.output}\n\n${output}`;
+        // } else {
+        //     outputTerminal.style.color = '#ff0000';
+        //     outputTerminal.textContent = "❌ Compile-time errors found:\n" + 
+        //         result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n')+
+        //         '\n\n'+(output[0]==' '?output:'');
+        //     // if (astText) {
+        //     //     outputTerminal.textContent += astText;
+        //     // }
+        // }
     });
 });

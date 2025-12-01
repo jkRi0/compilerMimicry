@@ -1,10 +1,10 @@
-function simulateCode(code, language = 'java') {
+async function simulateCode(code, language = 'java') {
     // Route to appropriate analysis based on language
     switch(language.toLowerCase()) {
         case 'c++':
         case 'cpp':
             if (typeof window.simulateCppOutput === 'function') {
-                return window.simulateCppOutput(code);
+                return await "CPP-SIMULATION: " + window.simulateCppOutput(code);
             } else {
                 return {
                     success: false,
@@ -22,7 +22,7 @@ function simulateCode(code, language = 'java') {
         case 'c#':
         case 'csharp':
             if (typeof window.simulateCSharpOutput === 'function') {
-                return window.simulateCSharpOutput(code);
+                return await "C#-SIMULATION: " + window.simulateCSharpOutput(code);
             } else {
                 return {
                     success: false,
@@ -40,7 +40,7 @@ function simulateCode(code, language = 'java') {
         case 'java':
         default:
             if (typeof window.simulateJavaOutput === 'function') {
-                return window.simulateJavaOutput(code);
+                return await "JAVA-SIMULATION: " + window.simulateJavaOutput(code);
             } else {
                 return {
                     success: false,

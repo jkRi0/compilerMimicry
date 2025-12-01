@@ -86,11 +86,14 @@ window.getMonacoLanguage = function(language) {
 
 // Function to switch Monaco editor language
 function switchMonacoLanguage(language) {
-    const monacoLanguage = getMonacoLanguage(language);
-    const defaultCode = getDefaultCode(language);
-    
-    // Try to switch immediately if editor is ready
-    if (window.editor && window.monaco) {
+    // Use iframe communication if available, otherwise fall back to direct access
+    if (window.setEditorLanguage) {
+        window.setEditorLanguage(language);
+        console.log(`Monaco editor switched to ${language} (via iframe)`);
+    } else if (window.editor && window.monaco) {
+        // Fallback for direct editor access (if not using iframe)
+        const monacoLanguage = getMonacoLanguage(language);
+        const defaultCode = getDefaultCode(language);
         window.monaco.editor.setModelLanguage(window.editor.getModel(), monacoLanguage);
         window.editor.setValue(defaultCode);
         console.log(`Monaco editor switched to ${language}`);
@@ -99,7 +102,13 @@ function switchMonacoLanguage(language) {
         let retries = 0;
         const maxRetries = 50; // 5 seconds max wait
         const checkEditor = setInterval(() => {
-            if (window.editor && window.monaco) {
+            if (window.setEditorLanguage) {
+                window.setEditorLanguage(language);
+                console.log(`Monaco editor switched to ${language} (via iframe, after wait)`);
+                clearInterval(checkEditor);
+            } else if (window.editor && window.monaco) {
+                const monacoLanguage = getMonacoLanguage(language);
+                const defaultCode = getDefaultCode(language);
                 window.monaco.editor.setModelLanguage(window.editor.getModel(), monacoLanguage);
                 window.editor.setValue(defaultCode);
                 console.log(`Monaco editor switched to ${language} (after wait)`);
@@ -412,7 +421,17 @@ document.getElementById('backButton').addEventListener('click', function() {
 });
 
 document.getElementById('submitCodeBtn').addEventListener('click', async function() {
-    const code = window.editor.getValue(); // Assuming 'editor' is the global Monaco editor instance
+    // Get code from iframe editor or fallback to direct access
+    let code;
+    if (window.getEditorCode) {
+        code = await window.getEditorCode();
+    } else if (window.editor) {
+        code = window.editor.getValue();
+    } else {
+        console.error('Editor not available');
+        return;
+    }
+    
     const selectedData = JSON.parse(localStorage.getItem('selectedChallenge'));
     
     console.log('=== DIFFICULTY DEBUG ===');
