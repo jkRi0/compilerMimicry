@@ -842,6 +842,10 @@ function preprocessCppCode(src) {
     // First, remove unsupported includes
     let processed = src;
     
+    // Remove std:: namespace qualifiers - JSCPP doesn't support namespace qualifiers
+    // This must be done BEFORE other transformations to avoid breaking patterns
+    processed = processed.replace(/\bstd::/g, '');
+    
     // Remove #include <string> - JSCPP doesn't support this library
     // Split by lines and filter out lines containing #include <string>
     const lines = processed.split(/\r?\n/);
@@ -1097,15 +1101,9 @@ function simulateCppOutput(src) {
         unsigned_overflow: "error" // can be "error"(default), "warn" or "ignore"
     };
     
-    try {
-        var input = "";
-        var exitCode = JSCPP.run(processedCode, input, config);
-        return output;
-    } catch (error) {
-        // Return error message (prefixed with space to indicate error)
-        console.error("JSCPP error:", error.message);
-        return ' ' + error.message;
-    }
+    var input = "";
+    var exitCode = JSCPP.run(processedCode, input, config);
+    return output + exitCode;
 }
 
 
