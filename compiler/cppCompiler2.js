@@ -1103,7 +1103,8 @@ function simulateCppOutput(src) {
     
     var input = "";
     var exitCode = JSCPP.run(processedCode, input, config);
-    return output + exitCode;
+    // Return only the output, not the exit code (exit code is not printed in real C++ programs)
+    return output;
 }
 
 
