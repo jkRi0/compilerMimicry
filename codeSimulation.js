@@ -4,7 +4,7 @@ async function simulateCode(code, language = 'java') {
         case 'c++':
         case 'cpp':
             if (typeof window.simulateCppOutput === 'function') {
-                return await "CPP-SIMULATION: " + window.simulateCppOutput(code);
+                return await window.simulateCppOutput(code);
             } else {
                 return {
                     success: false,
@@ -22,7 +22,7 @@ async function simulateCode(code, language = 'java') {
         case 'c#':
         case 'csharp':
             if (typeof window.simulateCSharpOutput === 'function') {
-                return await "C#-SIMULATION: " + window.simulateCSharpOutput(code);
+                return await window.simulateCSharpOutput(code);
             } else {
                 return {
                     success: false,
@@ -40,7 +40,7 @@ async function simulateCode(code, language = 'java') {
         case 'java':
         default:
             if (typeof window.simulateJavaOutput === 'function') {
-                return await "JAVA-SIMULATION: " + window.simulateJavaOutput(code);
+                return await window.simulateJavaOutput(code);
             } else {
                 return {
                     success: false,

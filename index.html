@@ -230,52 +230,29 @@
                 // Get current language
                 const selectedLanguageSpan = document.getElementById('selectedLanguage');
                 const language = selectedLanguageSpan ? selectedLanguageSpan.textContent.toLowerCase() : '';
-                
-                // Display code from Monaco editor in console
-                console.log('Code from Monaco editor:', code);
-                console.log('Code length:', code.length, 'characters');
-                // console.log('First 100 characters:', code.substring(0, 100));
-                outputTerminal.textContent = await window.simulateCode(code, language);
 
 
+                const result = await window.compileCode(code, difficulty, language);
+
+                const output = await window.simulateCode(code, language);
+
+                console.log('Simulation result:', output);
+                console.log('Compilation result:', result); // Debug log
 
 
-
-
-                // var output = "";
-                // var config = {
-                //     stdio: {
-                //         write: function(s) {
-                //             output += s;
-                //         }
-                //     },
-                //     unsigned_overflow: "error" // can be "error"(default), "warn" or "ignore"
-                // };
-                // var exitCode = JSCPP.run(code, input, config);
-                // console.log(output + "\nprogram exited with code " + exitCode);
-
-
-                // const result = await window.compileCode(code, difficulty, language);
-
-                // const output = await window.simulateCode(code, language);
-
-                // console.log('Simulation result:', output);
-                // console.log('Compilation result:', result); // Debug log
-
-
-                // // const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
-                // if (result.success&&output[0]!=' ') {
-                //     outputTerminal.style.color = '#00ff00';
-                //     outputTerminal.textContent = `OUTPUT TERMINAL >>>${result.output}\n\n${output}`;
-                // } else {
-                //     outputTerminal.style.color = '#ff0000';
-                //     outputTerminal.textContent = "❌ Compile-time errors found:\n" + 
-                //         result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n')+
-                //         '\n\n'+(output[0]==' '?output:'');
-                //     // if (astText) {
-                //     //     outputTerminal.textContent += astText;
-                //     // }
-                // }
+                // const astText = result.ast ? `\n\nAST (JavaParser):\n${result.ast}` : '';
+                if (result.success&&output[0]!=' ') {
+                    outputTerminal.style.color = '#00ff00';
+                    outputTerminal.textContent = `OUTPUT TERMINAL >>>${result.output}\n\n${output}`;
+                } else {
+                    outputTerminal.style.color = '#ff0000';
+                    outputTerminal.textContent = "❌ Errors found:\n" + 
+                        result.errors.map((err, i) => `${i + 1}. [${err.severity.toUpperCase()}] Line ${err.line}: ${err.title} - ${err.desc}`).join('\n')+
+                        '\n\n'+(output[0]==' '?output:'');
+                    // if (astText) {
+                    //     outputTerminal.textContent += astText;
+                    // }
+                }
             });
         });
     </script>

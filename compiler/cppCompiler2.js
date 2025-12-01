@@ -1092,19 +1092,52 @@ function simulateCppOutput(src) {
     }
     
     var output = "";
+    var errorOutput = "";
     var config = {
         stdio: {
             write: function(s) {
                 output += s;
             }
         },
+        stderr: {
+            write: function(s) {
+                errorOutput += s;
+            }
+        },
         unsigned_overflow: "error" // can be "error"(default), "warn" or "ignore"
     };
     
     var input = "";
-    var exitCode = JSCPP.run(processedCode, input, config);
-    // Return only the output, not the exit code (exit code is not printed in real C++ programs)
-    return output;
+    
+    try {
+        var exitCode = JSCPP.run(processedCode, input, config);
+        
+        // If there's error output, return it with leading space (for error detection)
+        if (errorOutput) {
+            return ' ' + errorOutput;
+        }
+        
+        // Return only the output, not the exit code (exit code is not printed in real C++ programs)
+        return output;
+    } catch (error) {
+        // Catch runtime errors from JSCPP
+        // Check if the error message is already in errorOutput to avoid duplicates
+        const errorMessage = error.message || String(error);
+        const isAlreadyInStderr = errorOutput && errorOutput.includes(errorMessage);
+        
+        if (isAlreadyInStderr) {
+            // Error was already captured in stderr, just return it
+            return ' ' + errorOutput;
+        }
+        
+        // Error wasn't in stderr, format it
+        let errorMsg = 'Error: ' + errorMessage;
+        // Don't include stack trace in user-facing errors (too technical)
+        // if (error.stack) {
+        //     errorMsg += '\n' + error.stack.split('\n').slice(0, 3).join('\n');
+        // }
+        return ' ' + errorMsg;
+    }
 }
 
 
