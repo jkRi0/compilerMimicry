@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleEditorBtn = document.getElementById('toggleEditor');
     const toggleTerminalBtn = document.getElementById('toggleTerminal');
     const codeEditor = document.querySelector('.code-editor-div');
-    const terminal = document.querySelector('.output-terminal');
+    const terminal = document.querySelector('.terminal-container');
 
     // Add close buttons to panels
     function addCloseButton(panel) {

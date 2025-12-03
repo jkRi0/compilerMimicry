@@ -214,7 +214,7 @@ function switchTips(language) {
 // Function to fetch and display current programming language
 function fetchCurrentLanguage() {
     
-    switchLanguage("cpp");
+    switchLanguage("java");
 }
 
 // Load and display selected challenge data from localStorage

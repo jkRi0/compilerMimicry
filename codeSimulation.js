@@ -21,8 +21,8 @@ async function simulateCode(code, language = 'java') {
             }
         case 'c#':
         case 'csharp':
-            if (typeof window.simulateCSharpOutput === 'function') {
-                return await window.simulateCSharpOutput(code);
+            if (typeof window.simulateCsharpOutput === 'function') {
+                return await window.simulateCsharpOutput(code);
             } else {
                 return {
                     success: false,

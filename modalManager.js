@@ -275,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.rubricsCriteria = rubricsCriteria; // Keep this for codeAnalyzer.js
 
     // Placeholder for Gemini API Key (User should replace this with their actual key)
-    const GEMINI_API_KEY = "AIzaSyB34RNQAx1CxGgjt6FJ6apeKSnsj2GJtf0";
+    const GEMINI_API_KEY = "AIzaSyBVGcMbvqpphBZCbRNsOM-Xuu0pmkCawes";
     // const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
 
     async function getGeminiFeedback(submittedCode, solutionCode, difficulty, scoringResult) {
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

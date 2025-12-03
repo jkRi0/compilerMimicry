@@ -26,15 +26,38 @@ body {
 }
 
 .control-buttons {
+    display: flex;
+    gap: 8px;
+    padding: 0;
+    background-color: transparent;
+    border-radius: 0;
+    backdrop-filter: none;
+}
+
+/* When control buttons are in image container (original position) */
+.image-container .control-buttons {
     position: absolute;
     bottom: 20px;
     right: 20px;
-    display: flex;
-    gap: 10px;
     padding: 10px;
     background-color: rgba(0, 0, 0, 0.6);
     border-radius: 8px;
     backdrop-filter: blur(4px);
+    gap: 10px;
+}
+
+/* When control buttons are in terminal header */
+.terminal-header .control-buttons {
+    display: flex;
+    gap: 6px;
+    padding: 0;
+    background-color: transparent;
+    flex-shrink: 0;
+}
+
+.terminal-header .control-btn {
+    padding: 6px 12px;
+    font-size: 12px;
 }
 
 .control-btn {
@@ -68,7 +91,7 @@ body {
 
 .code-editor-div {
     grid-column: 2 / 3; /* Spans the second column */
-    grid-row: 1 / 2; /* Spans the first row */
+    grid-row: 1 / 3; /* Spans from top to bottom (both rows) */
     background-color: #A8D1EA; /* Lighter blue */
     display: flex;
     flex-direction: column; /* Allow content to stack */
@@ -93,32 +116,210 @@ body {
     cursor: pointer;
 }
 
-.output-terminal {
-    grid-column: 1 / 3; /* Spans both columns */
+/* Modern Terminal Container */
+.terminal-container {
+    grid-column: 1 / 2; /* Only spans the left column */
     grid-row: 2 / 3; /* Spans the second row */
-    background-color: #1a1a1a; /* Dark background */
-    color: #00ff00; /* Green text for a terminal feel */
-    font-family: 'Consolas', 'Monaco', monospace; /* Monospace font */
-    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    background-color: #0d1117; /* Modern dark background */
+    border-top: 1px solid #30363d;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    position: relative;
+}
+
+/* Terminal Resize Handle */
+.terminal-resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background-color: transparent;
+    cursor: ns-resize;
+    z-index: 10;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.terminal-resize-handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 3px;
+    background-color: #30363d;
+    border-radius: 2px;
+    transition: background-color 0.2s ease;
+}
+
+.terminal-resize-handle:hover {
+    background-color: rgba(88, 166, 255, 0.1);
+}
+
+.terminal-resize-handle:hover::before {
+    background-color: #58a6ff;
+}
+
+.terminal-resize-handle:active {
+    background-color: rgba(31, 111, 235, 0.2);
+}
+
+.terminal-resize-handle:active::before {
+    background-color: #1f6feb;
+}
+
+/* Terminal Header */
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #161b22, #0d1117);
+    padding: 8px 16px;
+    border-bottom: 1px solid #30363d;
+    min-height: 36px;
+}
+
+.terminal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #c9d1d9;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+}
+
+.terminal-icon {
+    color: #58a6ff;
+    font-size: 12px;
+}
+
+.terminal-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.terminal-btn {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-size: 10px;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s ease;
+    color: transparent;
+}
+
+.terminal-btn:hover {
+    opacity: 0.8;
+}
+
+.terminal-btn.minimize {
+    background-color: #f85149;
+}
+
+.terminal-btn.maximize {
+    background-color: #fb8500;
+}
+
+.terminal-btn.close {
+    background-color: #3fb950;
+}
+
+/* Terminal Input Section */
+.terminal-input-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background-color: #161b22;
+    border-bottom: 1px solid #30363d;
+}
+
+.input-label {
+    color: #8b949e;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+    white-space: nowrap;
+}
+
+.terminal-input {
+    flex: 1;
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #c9d1d9;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.terminal-input:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+}
+
+.terminal-input::placeholder {
+    color: #6e7681;
+}
+
+/* Output Terminal */
+.output-terminal {
+    flex: 1;
+    background-color: #0d1117;
+    color: #c9d1d9; /* Modern light text */
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    padding: 16px;
     overflow-y: auto;
     white-space: pre-wrap; /* Preserve whitespace and wrap text */
     box-sizing: border-box;
-    border-top: 1px solid #333;
-    position: relative; /* Needed for absolute positioning of cursor */
+    position: relative;
+    font-size: 13px;
+    line-height: 1.6;
 }
 
-.output-terminal::after {
-    content: '_'; /* Blinking cursor character */
-    color: #00ff00;
-    animation: blink-caret 1s step-end infinite;
+/* Modern scrollbar */
+.output-terminal::-webkit-scrollbar {
+    width: 10px;
 }
 
-@keyframes blink-caret {
-    from, to { opacity: 0; }
-    50% { opacity: 1; }
+.output-terminal::-webkit-scrollbar-track {
+    background: #161b22;
 }
+
+.output-terminal::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 5px;
+}
+
+.output-terminal::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+}
+
+/* Terminal prompt styling */
+.output-terminal::before {
+    content: '';
+    display: inline-block;
+}
+
+/* Remove old blinking cursor - we'll add it conditionally if needed */
 
 .verification-panel {
+    display: none;
     position: fixed;
     bottom: 20px;
     right: 20px;
@@ -238,7 +439,7 @@ body {
         z-index: 1000;
     }
 
-    .output-terminal {
+    .terminal-container {
         position: fixed;
         top: 0;
         left: 0;
@@ -250,7 +451,7 @@ body {
     }
 
     .code-editor-div.show,
-    .output-terminal.show {
+    .terminal-container.show {
         transform: translateX(0);
     }
 
@@ -290,19 +491,75 @@ body {
         right: 20px;
         transform: none;
     }
+
+    /* Ensure scrollbar is always visible on mobile for objectives container */
+    .objectives-container {
+        overflow-y: scroll !important; /* Force scrollbar to always be visible */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .objectives-container::-webkit-scrollbar {
+        width: 10px; /* Slightly wider on mobile for better visibility */
+        display: block !important; /* Force display */
+        -webkit-appearance: none;
+    }
+
+    .objectives-container::-webkit-scrollbar-thumb {
+        background: rgba(40, 167, 69, 0.7) !important; /* More visible on mobile */
+        min-height: 30px;
+    }
 }
 
 .objectives-container {
     position: absolute;
     top: 50%;
     left: 50%;
+    bottom: 0;
     transform: translate(-50%, -50%);
     padding: 20px;
-    max-width: 100%;
+    width: 80%;
+    height: 80%;
+    overflow-y: scroll; /* Changed from auto to scroll to force scrollbar visibility */
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
     font-family: 'Segoe UI', Arial, sans-serif;
     color: #333;
     background: transparent;
     background-color: #ffffffdb;
+    box-sizing: border-box;
+    /* Force scrollbar to always be visible */
+    scrollbar-gutter: stable;
+}
+
+/* Scrollbar styling for objectives container - Always visible */
+.objectives-container::-webkit-scrollbar {
+    width: 8px;
+    -webkit-appearance: none; /* Remove default styling */
+    display: block; /* Force display on mobile */
+}
+
+.objectives-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    -webkit-box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.objectives-container::-webkit-scrollbar-thumb {
+    background: rgba(40, 167, 69, 0.5);
+    border-radius: 4px;
+    -webkit-box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.1);
+    /* Force visibility on mobile */
+    min-height: 20px;
+}
+
+.objectives-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(40, 167, 69, 0.7);
+}
+
+/* Firefox scrollbar - Always visible */
+.objectives-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(40, 167, 69, 0.5) rgba(0, 0, 0, 0.05);
 }
 
 .objectives-container h3 {
