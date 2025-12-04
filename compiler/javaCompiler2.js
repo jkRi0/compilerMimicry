@@ -502,10 +502,31 @@ function findMatchingBrace(src, openBraceIndex) {
     let depth = 0;
     let inString = false;
     let stringChar = null;
+    let inComment = false;
 
     for (let i = openBraceIndex; i < src.length; i++) {
         const ch = src[i];
-        const prev = src[i - 1];
+        const prev = i > 0 ? src[i - 1] : null;
+        const next = i < src.length - 1 ? src[i + 1] : null;
+
+        // Detect comment start
+        if (!inString && !inComment && ch === '/' && next === '/') {
+            inComment = true;
+            i++; // Skip the second '/'
+            continue;
+        }
+
+        // Exit comment on newline
+        if (inComment) {
+            if (ch === '\n' || ch === '\r') {
+                inComment = false;
+                // Don't skip the newline - let it be processed normally
+                // (newlines don't affect brace matching, so this is safe)
+            } else {
+                // Still in comment, skip this character
+                continue;
+            }
+        }
 
         if (inString) {
             if (ch === stringChar && prev !== "\\") {
@@ -888,7 +909,11 @@ function executeJavaMain(src, sourceLabel) {
         };
     }
 
-    const jsBody = transformJavaBodyToJs(mainBody);
+    let jsBody = transformJavaBodyToJs(mainBody);
+    // Remove single-line comments from JavaScript (they're not needed for execution)
+    // Split by both actual newlines and escaped \n sequences, filter out comment lines, then rejoin
+    const lines = jsBody.split(/(?:\r?\n|\\n)/);
+    jsBody = lines.filter(line => !line.trim().startsWith('//')).join('\n');
     if (typeof process !== "undefined" && process.env && process.env.DEBUG_JS_BODY) {
         console.log("=== TRANSFORMED MAIN BODY ===");
         console.log(jsBody);
@@ -1126,13 +1151,27 @@ function validateJavaSyntax(src, sourceLabel) {
         // Skip empty lines and comments
         if (!trimmed || trimmed.startsWith('//')) return;
         
-        // Check for unclosed double-quoted strings
+        // Check for unclosed double-quoted strings (skip quotes in comments)
         let inString = false;
+        let inComment = false;
         let escaped = false;
         let stringStart = -1;
         
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
+            const next = i < line.length - 1 ? line[i + 1] : null;
+            
+            // Detect comment start
+            if (!inString && !inComment && char === '/' && next === '/') {
+                inComment = true;
+                i++; // Skip the second '/'
+                continue;
+            }
+            
+            // Skip everything in comments
+            if (inComment) {
+                continue;
+            }
             
             if (escaped) {
                 escaped = false;
@@ -1159,13 +1198,27 @@ function validateJavaSyntax(src, sourceLabel) {
             return;
         }
         
-        // Check for unclosed single-quoted chars
+        // Check for unclosed single-quoted chars (skip quotes in comments)
         let inChar = false;
         let charStart = -1;
+        inComment = false;
         escaped = false;
         
         for (let i = 0; i < line.length; i++) {
             const char = line[i];
+            const next = i < line.length - 1 ? line[i + 1] : null;
+            
+            // Detect comment start
+            if (!inChar && !inComment && char === '/' && next === '/') {
+                inComment = true;
+                i++; // Skip the second '/'
+                continue;
+            }
+            
+            // Skip everything in comments
+            if (inComment) {
+                continue;
+            }
             
             if (escaped) {
                 escaped = false;
@@ -1324,3 +1377,4 @@ function simulateSystemOutPrinting(src) {
 // console.log(simulateSystemOutPrinting(code));
 
 window.simulateJavaOutput = simulateSystemOutPrinting;
+window.javaCompilerVersion = '2.3-comment-fix-v2';

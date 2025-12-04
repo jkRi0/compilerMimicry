@@ -95,10 +95,10 @@
         <div id="outputLabel">Terminal Output:</div>
         <div id="outputTerminal"></div>
     </div>
-    <!-- <script src="compiler/javaCompiler2.js"></script> -->
+    <script src="compiler/javaCompiler2.js"></script>
 
     <!-- <script src="compiler/JSCPP.es5.min.js"></script> -->
-    <script src="compiler/cppCompiler2.js"></script>
+    <!-- <script src="compiler/cppCompiler2.js"></script> -->
     <script>
     const runBtn = document.getElementById('runBtn');
     const input = document.getElementById('javaCodeInput');
@@ -107,7 +107,7 @@
         terminalDiv.textContent = 'Running...';
         setTimeout(() => {
             const code = input.value;
-            const result = window.simulateCppOutput(code);
+            const result = window.simulateJavaOutput(code);
             if(result === undefined || result === null) {
                 terminalDiv.textContent = '(No output)';
             } else {

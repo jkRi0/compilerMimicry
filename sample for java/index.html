@@ -1,15 +1,23 @@
-public class MainDemo {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script src="../compiler/javaCompiler2.js"></script>
+    <script type="text/javascript">
+        var code = 	`
+        public class MainDemo {
     public static void main(String[] args) {
-
         // === PRIMITIVES ===
         byte byteVar = 10;
         short shortVar = 300;
         int intVar = 50000;
         long longVar = 90000000000L;
-
         float floatVar = 3.14f;
         double doubleVar = 3.14159265359;
-
         char charVar = 'A';
         boolean boolVar = true;
 
@@ -30,16 +38,11 @@ public class MainDemo {
         System.out.println("char: " + charVar);
         System.out.println("boolean: " + boolVar);
 
-        System.out.println("=== NON-PRIMITIVES ===");
+        System.out.println("\n=== NON-PRIMITIVES ===");
         System.out.println("String: " + stringVar);
         System.out.println("Integer wrapper: " + wrapperInt);
         System.out.println("Double wrapper: " + wrapperDouble);
         System.out.println("Boolean wrapper: " + wrapperBoolean);
-
-        System.out.println("123" + "456");
-        System.out.print(" 123" + 456);
-        System.out.println(123 + 456);
-
 
         // === ARRAYS ===
         int[] numArray = {1, 2, 3, 4, 5};
@@ -124,12 +127,10 @@ public class MainDemo {
         System.out.println("Message from method: " + getMessage());
     }
 
-    // Method returning a value
     public static int addNumbers(int a, int b) {
         return a + b;
     }
 
-    // Method with no return
     public static void printMessage(String msg) {
         System.out.println("Message: " + msg);
     }
@@ -138,3 +139,10 @@ public class MainDemo {
         return "This is a message from the method!";
     }
 }
+        `
+        ;
+
+        console.log(simulateJavaOutput(code));
+    </script>
+</body>
+</html>
